@@ -123,6 +123,7 @@ export function useCurrencyBalances(
   account?: string,
   currencies?: (Currency | undefined)[],
 ): (CurrencyAmount<Currency> | undefined)[] {
+  const validatedAccount = useMemo(() => isAddress(account), [account])
   const tokens = useMemo(
     () => currencies?.filter((currency): currency is Token => currency?.isToken) ?? [],
     [currencies],
@@ -139,12 +140,12 @@ export function useCurrencyBalances(
   return useMemo(
     () =>
       currencies?.map((currency) => {
-        if (!account || !currency) return undefined
+        if (!validatedAccount || !currency) return undefined
         if (currency?.isToken) return tokenBalances[currency.address]
-        if (currency?.isNative) return nativeBalance[account]
+        if (currency?.isNative) return nativeBalance[validatedAccount]
         return undefined
       }) ?? [],
-    [account, currencies, nativeBalance, tokenBalances],
+    [validatedAccount, currencies, nativeBalance, tokenBalances],
   )
 }
 
