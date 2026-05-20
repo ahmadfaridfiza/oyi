@@ -1,12 +1,15 @@
 import { Currency, CurrencyAmount, JSBI, Native, Token } from '@pancakeswap/sdk'
 import { useMemo } from 'react'
 import { useAccount } from 'wagmi'
+import useSWR from 'swr'
 import ERC20_INTERFACE from 'config/abi/erc20'
 import { useAllTokens } from 'hooks/Tokens'
 import { useMulticallContract } from 'hooks/useContract'
 import { isAddress } from 'utils'
 import orderBy from 'lodash/orderBy'
 import useNativeCurrency from 'hooks/useNativeCurrency'
+import { useActiveChainId } from 'hooks/useActiveChainId'
+import { useEthersProvider } from 'hooks/useEthersProvider'
 import { useSingleContractMultipleData, useMultipleContractSingleData } from '../multicall/hooks'
 
 /**
@@ -16,6 +19,8 @@ export function useNativeBalances(uncheckedAddresses?: (string | undefined)[]): 
   [address: string]: CurrencyAmount<Native> | undefined
 } {
   const native = useNativeCurrency()
+  const { chainId } = useActiveChainId()
+  const provider = useEthersProvider({ chainId })
   const multicallContract = useMulticallContract()
 
   const addresses: string[] = useMemo(
@@ -30,14 +35,28 @@ export function useNativeBalances(uncheckedAddresses?: (string | undefined)[]): 
     useMemo(() => addresses.map((address) => [address]), [addresses]),
   )
 
+  const { data: providerBalances } = useSWR(
+    provider && addresses.length > 0 ? ['nativeBalances', chainId, addresses.join(',')] : null,
+    async () => {
+      const balances = await Promise.all(addresses.map((address) => provider.getBalance(address)))
+      return addresses.reduce<Record<string, string>>((memo, address, index) => {
+        memo[address] = balances[index].toString()
+        return memo
+      }, {})
+    },
+    {
+      refreshInterval: 10000,
+    },
+  )
+
   return useMemo(
     () =>
       addresses.reduce<{ [address: string]: CurrencyAmount<Native> }>((memo, address, i) => {
-        const value = results?.[i]?.result?.[0]
+        const value = results?.[i]?.result?.[0] ?? providerBalances?.[address]
         if (value) memo[address] = CurrencyAmount.fromRawAmount(native, JSBI.BigInt(value.toString()))
         return memo
       }, {}),
-    [addresses, results, native],
+    [addresses, results, native, providerBalances],
   )
 }
 
