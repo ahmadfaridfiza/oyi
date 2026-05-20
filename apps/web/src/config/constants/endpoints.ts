@@ -1,0 +1,54 @@
+import { ChainId } from '@pancakeswap/sdk'
+
+export const GRAPH_API_PROFILE = 'https://api.studio.thegraph.com/query/1749035/tesprof/version/latest'
+export const GRAPH_API_PREDICTION_BNB = ''
+export const GRAPH_API_PREDICTION_CAKE = ''
+
+export const GRAPH_API_LOTTERY = 'https://api.studio.thegraph.com/query/111480/plaxlot/version/latest'
+export const SNAPSHOT_BASE_URL = process.env.NEXT_PUBLIC_SNAPSHOT_BASE_URL
+export const API_PROFILE = 'https://profile.pancakeswap.com'
+export const API_NFT = ''
+export const SNAPSHOT_API = `${SNAPSHOT_BASE_URL}/graphql`
+export const SNAPSHOT_HUB_API = `${SNAPSHOT_BASE_URL}/api/message`
+export const GRAPH_API_POTTERY = 'https://api.studio.thegraph.com/query/1749035/tespot/version/latest'
+
+/**
+ * V1 will be deprecated but is still used to claim old rounds
+ */
+export const GRAPH_API_PREDICTION_V1 = ''
+
+export const INFO_CLIENT = 'https://api.studio.thegraph.com/query/1749035/defites/version/latest'
+export const INFO_CLIENT_FALLBACKS = [
+  INFO_CLIENT,
+  'https://api.studio.thegraph.com/query/1749771/tesdata/version/latest',
+  'https://api.studio.thegraph.com/query/1749771/testokendata/version/latest',
+  'https://api.studio.thegraph.com/query/1749771/tesvolumedata/version/latest',
+]
+
+export const INFO_CLIENT_ETH = ''
+export const BLOCKS_CLIENT = 'https://api.goldsky.com/api/public/project_cl8ylkiw00krx0hvza0qw17vn/subgraphs/blocks/matic/gn'
+export const BLOCKS_CLIENT_ETH = ''
+export const STABLESWAP_SUBGRAPH_CLIENT = 'https://api.studio.thegraph.com/query/1749035/defites/version/latest'
+export const GRAPH_API_NFTMARKET = ''
+export const GRAPH_HEALTH = 'https://indexer.upgrade.thegraph.com/status'
+
+export const TC_MOBOX_SUBGRAPH = ''
+export const TC_MOD_SUBGRAPH = ''
+
+export const FARM_API = ''
+
+export const BIT_QUERY = 'https://graphql.bitquery.io'
+
+export const ACCESS_RISK_API = '/api/risk'
+
+export const CELER_API = 'https://api.celerscan.com/scan'
+
+export const INFO_CLIENT_WITH_CHAIN = {
+  [ChainId.BSC]: INFO_CLIENT,
+}
+
+export const BLOCKS_CLIENT_WITH_CHAIN = {
+  [ChainId.BSC]: BLOCKS_CLIENT,
+}
+
+export const ASSET_CDN = 'https://assets.pancakeswap.finance'
