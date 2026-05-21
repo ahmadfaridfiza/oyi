@@ -5,6 +5,8 @@ import {
   SwapFillIcon,
   EarnFillIcon,
   EarnIcon,
+  LockIcon,
+  SmartContractIcon,
   TrophyIcon,
   TrophyFillIcon,
   // NftIcon,
@@ -194,6 +196,36 @@ const config: (
     //       type: DropdownMenuItemType.EXTERNAL_LINK,
     //     },
     {
+      label: t('Token Deployer'),
+      href: '/token-deployer',
+      icon: SmartContractIcon,
+      items: [
+        {
+          label: t('Create Token'),
+          href: '/token-deployer',
+        },
+      ].map((item) => addMenuItemSupported(item, chainId)),
+    },
+    {
+      label: t('Tools'),
+      href: '/token-locker',
+      icon: LockIcon,
+      items: [
+        {
+          label: t('Create Locker'),
+          href: '/token-locker',
+        },
+        {
+          label: t('My Locks'),
+          href: '/token-locker/my-locks',
+        },
+        {
+          label: t('All Locks'),
+          href: '/token-locker/all-locks',
+        },
+      ].map((item) => addMenuItemSupported(item, chainId)),
+    },
+    {
       label: t('Lottery'),
       href: '/lottery',
       icon: TrophyIcon,
@@ -217,30 +249,6 @@ const config: (
         //   image: '/images/decorations/lottery.png',
         // },
       ],
-    },
-    {
-      label: t('Tools'),
-      href: '/token-deployer',
-      icon: MoreIcon,
-      showItemsOnMobile: false,
-      items: [
-        {
-          label: t('Token Deployer'),
-          href: '/token-deployer',
-        },
-        {
-          label: t('Create Locker'),
-          href: '/token-locker',
-        },
-        {
-          label: t('My Locks'),
-          href: '/token-locker/my-locks',
-        },
-        {
-          label: t('All Locks'),
-          href: '/token-locker/all-locks',
-        },
-      ].map((item) => addMenuItemSupported(item, chainId)),
     },
     // {
     //   label: t('NFT (Coming Soon)'),
