@@ -28,7 +28,7 @@ export const BRIDGE_CHAINS: BridgeChain[] = [
     id: 137,
     name: 'Polygon',
     shortName: 'Polygon',
-    rpcUrls: ['https://polygon-rpc.com'],
+    rpcUrls: ['https://polygon.drpc.org'],
     nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
     blockExplorerUrls: ['https://polygonscan.com'],
   },
