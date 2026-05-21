@@ -203,10 +203,29 @@ const Bridge = () => {
     () => bridgeTokenContract.allowance(account, spender),
   )
 
+  const { data: tokenBalance } = useSWR(
+    account && fromToken && connectedChainId === fromChainId
+      ? ['bridgeTokenBalance', account, fromChainId, fromToken.address]
+      : null,
+    async () => {
+      if (fromToken.isNative) {
+        return getBrowserSigner().provider.getBalance(account)
+      }
+      if (!bridgeTokenContract) {
+        return undefined
+      }
+      return bridgeTokenContract.balanceOf(account)
+    },
+    {
+      refreshInterval: 10000,
+    },
+  )
+
   const isApproved =
     !shouldApprove || !parsedAmount || (allowance ? BigNumber.from(allowance).gte(parsedAmount) : false)
   const isWrongNetwork = Boolean(account && connectedChainId !== fromChainId)
-  const canQuote = Boolean(account && fromToken && toToken && parsedAmount && parsedAmount.gt(0))
+  const hasEnoughBalance = parsedAmount && tokenBalance ? BigNumber.from(tokenBalance).gte(parsedAmount) : false
+  const canQuote = Boolean(account && fromToken && toToken && parsedAmount && parsedAmount.gt(0) && hasEnoughBalance)
   const canBridge = Boolean(account && quote?.transactionRequest?.to && isApproved && !isWrongNetwork)
 
   const resetQuote = useCallback(() => {
@@ -397,6 +416,16 @@ const Bridge = () => {
                 }}
                 placeholder="0.0"
               />
+              {account && fromToken && connectedChainId === fromChainId ? (
+                <Flex justifyContent="space-between" mt="8px">
+                  <Text color="textSubtle" fontSize="12px">
+                    {t('Balance')}
+                  </Text>
+                  <Text color="textSubtle" fontSize="12px">
+                    {formatTokenAmount(tokenBalance?.toString(), fromToken)} {fromToken.symbol}
+                  </Text>
+                </Flex>
+              ) : null}
             </Box>
 
             {quote ? (
@@ -450,6 +479,10 @@ const Bridge = () => {
                 endIcon={isSwitching ? <AutoRenewIcon spin color="currentColor" /> : undefined}
               >
                 {t('Switch Network')}
+              </Button>
+            ) : parsedAmount && parsedAmount.gt(0) && tokenBalance && !hasEnoughBalance ? (
+              <Button width="100%" disabled>
+                {t('Insufficient %symbol% Balance', { symbol: fromToken?.symbol })}
               </Button>
             ) : !quote ? (
               <Button
