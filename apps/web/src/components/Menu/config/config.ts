@@ -264,6 +264,11 @@ const config: (
       hideSubNav: true,
       items: [
         {
+          label: t('Bridge Token'),
+          href: '/bridge',
+          image: '/stargate.png',
+        },
+        {
           label: t('IFO'),
           href: '/ifo',
           supportChainIds: SUPPORT_ONLY_BSC,
