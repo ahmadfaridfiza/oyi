@@ -1,7 +1,7 @@
 /* eslint-disable import/extensions */
 import { JsonRpcProvider, FallbackProvider, Web3Provider } from '@ethersproject/providers'
 import memoize from 'lodash/memoize'
-import { polygon, polygonMumbai } from 'wagmi/chains'
+import { arbitrum, bsc, mainnet, optimism, polygon, polygonMumbai } from 'wagmi/chains'
 import type { Transport } from 'viem'
 import { getConnectorClient } from '@wagmi/core/dist/esm/actions/getConnectorClient.js'
 import { injected } from '@wagmi/core/dist/esm/connectors/injected.js'
@@ -10,7 +10,7 @@ import { walletConnect } from '@wagmi/connectors/dist/esm/walletConnect.js'
 import { wagmiAdapter } from 'config/reown'
 import { BSC_PROD_NODE } from 'utils/providers'
 
-export const chains = [polygon, polygonMumbai]
+export const chains = [polygon, polygonMumbai, mainnet, bsc, arbitrum, optimism]
 
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '9ba1c138ff7ad815f7026b920b652f0b'
 

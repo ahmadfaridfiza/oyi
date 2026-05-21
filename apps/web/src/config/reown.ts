@@ -1,11 +1,18 @@
 import { createAppKit } from '@reown/appkit/react'
-import { polygon, polygonMumbai } from '@reown/appkit/networks'
+import { arbitrum, bsc, mainnet, optimism, polygon, polygonMumbai } from '@reown/appkit/networks'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { http } from 'viem'
 
 export const reownProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '9ba1c138ff7ad815f7026b920b652f0b'
 
-export const reownNetworks = [polygon, polygonMumbai] as [typeof polygon, typeof polygonMumbai]
+export const reownNetworks = [polygon, polygonMumbai, mainnet, bsc, arbitrum, optimism] as [
+  typeof polygon,
+  typeof polygonMumbai,
+  typeof mainnet,
+  typeof bsc,
+  typeof arbitrum,
+  typeof optimism,
+]
 
 const POLYGON_RPC_URL =
   process.env.NEXT_PUBLIC_NODE_PRODUCTION || 'https://polygon.drpc.org'
@@ -36,6 +43,10 @@ export const wagmiAdapter = new WagmiAdapter({
   transports: {
     [polygon.id]: http(getRpcUrl(polygon)),
     [polygonMumbai.id]: http(getRpcUrl(polygonMumbai)),
+    [mainnet.id]: http(mainnet.rpcUrls.default.http[0]),
+    [bsc.id]: http(bsc.rpcUrls.default.http[0]),
+    [arbitrum.id]: http(arbitrum.rpcUrls.default.http[0]),
+    [optimism.id]: http(optimism.rpcUrls.default.http[0]),
   },
 })
 

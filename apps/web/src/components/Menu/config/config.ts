@@ -266,7 +266,7 @@ const config: (
         {
           label: t('Bridge Token'),
           href: '/bridge',
-          image: '/stargate.png',
+          image: '/images/decorations/3d-coin.png',
         },
         {
           label: t('IFO'),
