@@ -14,6 +14,7 @@ import {
   Button,
   Card,
   CardBody,
+  ChevronDownIcon,
   Flex,
   Heading,
   Input,
@@ -32,15 +33,22 @@ import { useAccount, useChainId } from 'wagmi'
 import { useRouter } from 'next/router'
 import Page from 'views/Page'
 import ERC20_ABI from 'config/abi/erc20.json'
+import CurrencyLogo from 'components/Logo/CurrencyLogo'
+import { ChainLogo } from 'components/Logo/ChainLogo'
 import {
   BRIDGE_CHAINS,
+  BridgeChain,
   BridgeToken,
   LIFI_NATIVE_TOKEN_ADDRESS,
   getBridgeChain,
   getBridgeTokens,
 } from './config'
 
-const Select = styled.select`
+const SelectWrapper = styled.div`
+  position: relative;
+`
+
+const SelectButton = styled.button`
   width: 100%;
   height: 48px;
   border: 1px solid ${({ theme }) => theme.colors.inputSecondary};
@@ -50,6 +58,42 @@ const Select = styled.select`
   font-size: 16px;
   padding: 0 16px;
   outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`
+
+const SelectMenu = styled.div`
+  position: absolute;
+  top: 54px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  border: 1px solid ${({ theme }) => theme.colors.cardBorder};
+  border-radius: 16px;
+  background-color: ${({ theme }) => theme.card.background};
+  padding: 6px;
+  box-shadow: ${({ theme }) => theme.shadows.level1};
+`
+
+const SelectOption = styled.button<{ selected?: boolean }>`
+  width: 100%;
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: ${({ selected, theme }) => (selected ? theme.colors.input : 'transparent')};
+  color: ${({ theme }) => theme.colors.text};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-weight: 600;
+  text-align: left;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.input};
+  }
 `
 
 const FieldLabel = ({ children }: { children: ReactNode }) => (
@@ -57,6 +101,103 @@ const FieldLabel = ({ children }: { children: ReactNode }) => (
     {children}
   </Text>
 )
+
+const BridgeTokenLogo = ({ token }: { token: BridgeToken }) => {
+  if (token.isNative) {
+    return <ChainLogo chainId={token.chainId} width={24} height={24} />
+  }
+  return <CurrencyLogo currency={getBridgeCurrency(token)} size="24px" />
+}
+
+const ChainSelect = ({
+  value,
+  options,
+  isOpen,
+  onToggle,
+  onChange,
+}: {
+  value: number
+  options: BridgeChain[]
+  isOpen: boolean
+  onToggle: () => void
+  onChange: (value: number) => void
+}) => {
+  const selected = options.find((chain) => chain.id === value) ?? options[0]
+
+  return (
+    <SelectWrapper>
+      <SelectButton type="button" onClick={onToggle}>
+        <Flex alignItems="center" style={{ gap: '8px' }}>
+          <ChainLogo chainId={selected.id} width={24} height={24} />
+          <span>{selected.name}</span>
+        </Flex>
+        <ChevronDownIcon color="text" width="20px" />
+      </SelectButton>
+      {isOpen ? (
+        <SelectMenu>
+          {options.map((chain) => (
+            <SelectOption
+              key={chain.id}
+              type="button"
+              selected={chain.id === value}
+              onClick={() => onChange(chain.id)}
+            >
+              <Flex alignItems="center" style={{ gap: '10px' }}>
+                <ChainLogo chainId={chain.id} width={24} height={24} />
+                <span>{chain.name}</span>
+              </Flex>
+            </SelectOption>
+          ))}
+        </SelectMenu>
+      ) : null}
+    </SelectWrapper>
+  )
+}
+
+const TokenSelect = ({
+  value,
+  options,
+  isOpen,
+  onToggle,
+  onChange,
+}: {
+  value: string
+  options: BridgeToken[]
+  isOpen: boolean
+  onToggle: () => void
+  onChange: (value: string) => void
+}) => {
+  const selected = options.find((token) => token.address === value) ?? options[0]
+
+  return (
+    <SelectWrapper>
+      <SelectButton type="button" onClick={onToggle}>
+        <Flex alignItems="center" style={{ gap: '8px' }}>
+          <BridgeTokenLogo token={selected} />
+          <span>{selected.symbol}</span>
+        </Flex>
+        <ChevronDownIcon color="text" width="20px" />
+      </SelectButton>
+      {isOpen ? (
+        <SelectMenu>
+          {options.map((token) => (
+            <SelectOption
+              key={token.address}
+              type="button"
+              selected={token.address === value}
+              onClick={() => onChange(token.address)}
+            >
+              <Flex alignItems="center" style={{ gap: '10px' }}>
+                <BridgeTokenLogo token={token} />
+                <span>{token.symbol}</span>
+              </Flex>
+            </SelectOption>
+          ))}
+        </SelectMenu>
+      ) : null}
+    </SelectWrapper>
+  )
+}
 
 type BridgeQuote = {
   tool?: string
@@ -201,6 +342,7 @@ const Bridge = () => {
   const [isApproving, setIsApproving] = useState(false)
   const [isBridging, setIsBridging] = useState(false)
   const [txHash, setTxHash] = useState('')
+  const [openSelect, setOpenSelect] = useState<'fromChain' | 'toChain' | 'fromToken' | 'toToken' | null>(null)
   const { data: signer } = useEthersSigner({ chainId: fromChainId })
 
   const fromTokens = useMemo(() => getBridgeTokens(fromChainId), [fromChainId])
@@ -254,6 +396,10 @@ const Bridge = () => {
     setTxHash('')
   }, [])
 
+  const toggleSelect = useCallback((select: typeof openSelect) => {
+    setOpenSelect((current) => (current === select ? null : select))
+  }, [])
+
   const requestSwitchNetwork = useCallback(
     async (chainId: number, reason: string) => {
       if (!account || connectedChainId === chainId || isSwitching) return
@@ -274,6 +420,7 @@ const Bridge = () => {
     const tokens = getBridgeTokens(nextChainId)
     setFromChainId(nextChainId)
     setFromTokenAddress(tokens[0]?.address ?? LIFI_NATIVE_TOKEN_ADDRESS)
+    setOpenSelect(null)
     resetQuote()
     requestSwitchNetwork(nextChainId, 'from-chain-change')
   }, [requestSwitchNetwork, resetQuote])
@@ -282,6 +429,19 @@ const Bridge = () => {
     const tokens = getBridgeTokens(nextChainId)
     setToChainId(nextChainId)
     setToTokenAddress(tokens[0]?.address ?? LIFI_NATIVE_TOKEN_ADDRESS)
+    setOpenSelect(null)
+    resetQuote()
+  }, [resetQuote])
+
+  const handleFromTokenChange = useCallback((nextTokenAddress: string) => {
+    setFromTokenAddress(nextTokenAddress)
+    setOpenSelect(null)
+    resetQuote()
+  }, [resetQuote])
+
+  const handleToTokenChange = useCallback((nextTokenAddress: string) => {
+    setToTokenAddress(nextTokenAddress)
+    setOpenSelect(null)
     resetQuote()
   }, [resetQuote])
 
@@ -404,23 +564,23 @@ const Bridge = () => {
             <Flex mb="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
               <Box width="100%" style={{ flex: 1 }}>
                 <FieldLabel>{t('From Chain')}</FieldLabel>
-                <Select value={fromChainId} onChange={(event) => handleFromChainChange(Number(event.target.value))}>
-                  {BRIDGE_CHAINS.map((chain) => (
-                    <option key={chain.id} value={chain.id}>
-                      {chain.name}
-                    </option>
-                  ))}
-                </Select>
+                <ChainSelect
+                  value={fromChainId}
+                  options={BRIDGE_CHAINS}
+                  isOpen={openSelect === 'fromChain'}
+                  onToggle={() => toggleSelect('fromChain')}
+                  onChange={handleFromChainChange}
+                />
               </Box>
               <Box width="100%" style={{ flex: 1 }}>
                 <FieldLabel>{t('To Chain')}</FieldLabel>
-                <Select value={toChainId} onChange={(event) => handleToChainChange(Number(event.target.value))}>
-                  {BRIDGE_CHAINS.map((chain) => (
-                    <option key={chain.id} value={chain.id}>
-                      {chain.name}
-                    </option>
-                  ))}
-                </Select>
+                <ChainSelect
+                  value={toChainId}
+                  options={BRIDGE_CHAINS}
+                  isOpen={openSelect === 'toChain'}
+                  onToggle={() => toggleSelect('toChain')}
+                  onChange={handleToChainChange}
+                />
               </Box>
             </Flex>
 
@@ -436,35 +596,23 @@ const Bridge = () => {
                     </Text>
                   ) : null}
                 </Flex>
-                <Select
+                <TokenSelect
                   value={fromTokenAddress}
-                  onChange={(event) => {
-                    setFromTokenAddress(event.target.value)
-                    resetQuote()
-                  }}
-                >
-                  {fromTokens.map((token) => (
-                    <option key={token.address} value={token.address}>
-                      {token.symbol}
-                    </option>
-                  ))}
-                </Select>
+                  options={fromTokens}
+                  isOpen={openSelect === 'fromToken'}
+                  onToggle={() => toggleSelect('fromToken')}
+                  onChange={handleFromTokenChange}
+                />
               </Box>
               <Box width="100%" style={{ flex: 1 }}>
                 <FieldLabel>{t('To Token')}</FieldLabel>
-                <Select
+                <TokenSelect
                   value={toTokenAddress}
-                  onChange={(event) => {
-                    setToTokenAddress(event.target.value)
-                    resetQuote()
-                  }}
-                >
-                  {toTokens.map((token) => (
-                    <option key={token.address} value={token.address}>
-                      {token.symbol}
-                    </option>
-                  ))}
-                </Select>
+                  options={toTokens}
+                  isOpen={openSelect === 'toToken'}
+                  onToggle={() => toggleSelect('toToken')}
+                  onChange={handleToTokenChange}
+                />
               </Box>
             </Flex>
 
