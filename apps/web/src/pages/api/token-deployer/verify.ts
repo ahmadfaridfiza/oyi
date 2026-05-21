@@ -4,11 +4,7 @@ import { readFileSync } from 'fs'
 import { defaultAbiCoder } from '@ethersproject/abi'
 import { z } from 'zod'
 
-const POLYGONSCAN_VERIFY_ENDPOINTS: Record<string, string> = {
-  '137': 'https://api.polygonscan.com/api',
-  '80001': 'https://api-testnet.polygonscan.com/api',
-}
-
+const ETHERSCAN_V2_API_ENDPOINT = 'https://api.etherscan.io/v2/api'
 const COMPILER_VERSION = 'v0.8.20+commit.a1b79de6'
 const CONTRACT_SOURCE_PATHS = [
   path.resolve(process.cwd(), '../../contracts/token-deployer/PlaxTokenDeployer.sol'),
@@ -79,21 +75,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     return
   }
 
-  const apiKey = process.env.POLYGONSCAN_API_KEY || process.env.POLYGONSCAN_APIKEY
+  const apiKey = process.env.ETHERSCAN_API_KEY || process.env.POLYGONSCAN_API_KEY || process.env.POLYGONSCAN_APIKEY
   if (!apiKey) {
-    res.status(500).json({ error: 'Missing POLYGONSCAN_API_KEY env variable' })
+    res.status(500).json({ error: 'Missing ETHERSCAN_API_KEY env variable' })
     return
   }
 
   const parsed = zVerifyPayload.safeParse(req.body)
   if (!parsed.success) {
     res.status(400).json({ error: 'Invalid verification payload' })
-    return
-  }
-
-  const endpoint = POLYGONSCAN_VERIFY_ENDPOINTS[String(parsed.data.chainId)]
-  if (!endpoint) {
-    res.status(400).json({ error: 'Unsupported network for Polygonscan verification' })
     return
   }
 
@@ -116,6 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
 
     const params = new URLSearchParams({
       apikey: apiKey,
+      chainid: String(parsed.data.chainId),
       module: 'contract',
       action: 'verifysourcecode',
       codeformat: 'solidity-standard-json-input',
@@ -125,11 +116,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       compilerversion: COMPILER_VERSION,
       optimizationUsed: '0',
       runs: '200',
-      constructorArguements: constructorArguments,
+      constructorArguments,
       licenseType: '3',
     })
 
-    const response = await fetch(endpoint, {
+    const response = await fetch(ETHERSCAN_V2_API_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
