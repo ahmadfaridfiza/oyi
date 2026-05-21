@@ -1,0 +1,61 @@
+[
+  {
+    "inputs": [
+      { "internalType": "address", "name": "feeToken_", "type": "address" },
+      { "internalType": "address", "name": "feeReceiver_", "type": "address" },
+      { "internalType": "uint256", "name": "feeAmount_", "type": "uint256" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "token", "type": "address" },
+      { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
+      { "indexed": false, "internalType": "string", "name": "symbol", "type": "string" },
+      { "indexed": false, "internalType": "uint8", "name": "decimals", "type": "uint8" },
+      { "indexed": false, "internalType": "uint256", "name": "totalSupply", "type": "uint256" },
+      { "indexed": false, "internalType": "bool", "name": "mintable", "type": "bool" },
+      { "indexed": false, "internalType": "bool", "name": "burnable", "type": "bool" }
+    ],
+    "name": "TokenCreated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "name", "type": "string" },
+      { "internalType": "string", "name": "symbol", "type": "string" },
+      { "internalType": "uint8", "name": "decimals", "type": "uint8" },
+      { "internalType": "uint256", "name": "totalSupply", "type": "uint256" },
+      { "internalType": "bool", "name": "mintable", "type": "bool" },
+      { "internalType": "bool", "name": "burnable", "type": "bool" }
+    ],
+    "name": "createToken",
+    "outputs": [{ "internalType": "address", "name": "token", "type": "address" }],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeAmount",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeReceiver",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeToken",
+    "outputs": [{ "internalType": "contract IERC20", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

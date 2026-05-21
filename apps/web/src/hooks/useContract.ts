@@ -10,9 +10,10 @@ import {
   Zap,
 } from 'config/abi/types'
 import zapAbi from 'config/abi/zap.json'
+import tokenDeployerAbi from 'config/abi/tokenDeployer.json'
 import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
 import { useMemo } from 'react'
-import { getMulticallAddress, getPredictionsV1Address, getZapAddress } from 'utils/addressHelpers'
+import { getMulticallAddress, getPredictionsV1Address, getTokenDeployerAddress, getZapAddress } from 'utils/addressHelpers'
 import {
   getAnniversaryAchievementContract,
   getBCakeFarmBoosterContract,
@@ -351,6 +352,11 @@ export const usePotterytDrawContract = () => {
 export function useZapContract(withSignerIfPossible = true) {
   const { chainId } = useActiveChainId()
   return useContract<Zap>(getZapAddress(chainId), zapAbi, withSignerIfPossible)
+}
+
+export function useTokenDeployerContract(withSignerIfPossible = true) {
+  const { chainId } = useActiveChainId()
+  return useContract(getTokenDeployerAddress(chainId), tokenDeployerAbi, withSignerIfPossible)
 }
 
 export function useBCakeFarmBoosterContract(withSignerIfPossible = true) {

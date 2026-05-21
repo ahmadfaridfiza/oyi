@@ -134,6 +134,10 @@ export default {
     137: '0xaa9c43064D7f051c25878dB58eC383d2A12D2bF7',
     80001: '',
   },
+  tokenDeployer: {
+    137: '0xc4eB7b4D702ad1B8Ef921a717F42b3EF5fB66111',
+    80001: '',
+  },
   stableSwapNativeHelper: {
     137: '0x336Ed58d457051b17984b63bf191a0EF1f9cBDC1',
     80001: '',

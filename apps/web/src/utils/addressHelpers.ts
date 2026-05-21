@@ -109,6 +109,11 @@ export const getPotteryDrawAddress = () => {
 export const getZapAddress = (chainId?: number) => {
   return getAddress(addresses.zap, chainId)
 }
+
+export const getTokenDeployerAddress = (chainId?: number) => {
+  return getAddress(addresses.tokenDeployer, chainId)
+}
+
 export const getICakeAddress = () => {
   return getAddress(addresses.iCake)
 }

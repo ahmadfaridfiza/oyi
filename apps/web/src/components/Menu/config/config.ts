@@ -63,6 +63,10 @@ const config: (
           label: t('Liquidity'),
           href: '/liquidity',
         },
+        {
+          label: t('Token Deployer'),
+          href: '/token-deployer',
+        },
         // {
         //   label: t('Perpetual'),
         //   href: getPerpetualUrl({
