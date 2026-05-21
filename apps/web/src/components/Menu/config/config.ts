@@ -203,32 +203,12 @@ const config: (
         {
           label: t('Token Deployer'),
           href: '/token-deployer',
-          items: [
-            {
-              label: t('Create Token'),
-              href: '/token-deployer',
-            },
-          ].map((item) => addMenuItemSupported(item, chainId)),
         },
         {
           label: t('Token Locker'),
           href: '/token-locker',
-          items: [
-            {
-              label: t('Create Locker'),
-              href: '/token-locker',
-            },
-            {
-              label: t('My Locks'),
-              href: '/token-locker/my-locks',
-            },
-            {
-              label: t('All Locks'),
-              href: '/token-locker/all-locks',
-            },
-          ].map((item) => addMenuItemSupported(item, chainId)),
         },
-      ]
+      ].map((item) => addMenuItemSupported(item, chainId)),
     },
     {
       label: t('Lottery'),
