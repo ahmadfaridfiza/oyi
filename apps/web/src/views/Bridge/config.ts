@@ -1,5 +1,5 @@
-const VERSION = '0.0.33'
-const SHA384 = '021ubXIhzewAwp2U/18P+WBqyCb6BviBfQGTvZOpHQi3h5fiNknvYAwiz9mS04Th'
+const VERSION = '0.0.25-mainnet.20'
+const SHA384 = 'RDYGBMTG+YS5OF8Kavau0Xdyq6j7e/5bFMF55lYu3Oz3gthIOqQSSJkcz96n6knF'
 
 export const PARTNER_ID = 0x0002
 export const FEE_COLLECTOR = '0xc6F09C01b4C213932907D1CC56144f301DeaD153'
