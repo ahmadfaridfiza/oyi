@@ -3,6 +3,7 @@ import { JsonRpcProvider, FallbackProvider, Web3Provider } from '@ethersproject/
 import memoize from 'lodash/memoize'
 import { polygon, polygonMumbai } from 'wagmi/chains'
 import type { Transport } from 'viem'
+import { WAGMI_BRIDGE_CHAINS, getBridgeChain } from 'config/constants/bridgeChains'
 import { getConnectorClient } from '@wagmi/core/dist/esm/actions/getConnectorClient.js'
 import { injected } from '@wagmi/core/dist/esm/connectors/injected.js'
 import { metaMask } from '@wagmi/connectors/dist/esm/metaMask.js'
@@ -10,7 +11,7 @@ import { walletConnect } from '@wagmi/connectors/dist/esm/walletConnect.js'
 import { wagmiAdapter } from 'config/reown'
 import { BSC_PROD_NODE } from 'utils/providers'
 
-export const chains = [polygon, polygonMumbai]
+export const chains = [polygon, polygonMumbai, ...WAGMI_BRIDGE_CHAINS.filter((chain) => chain.id !== polygon.id)]
 
 const walletConnectProjectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '9ba1c138ff7ad815f7026b920b652f0b'
 
@@ -69,7 +70,7 @@ const getReadOnlyRpcUrl = (chainId?: number) => {
   if (chainId === polygonMumbai.id) {
     return polygonMumbaiRpcUrl
   }
-  return undefined
+  return getBridgeChain(chainId)?.rpcUrls[0]
 }
 
 const clientToProvider = (clientConfig: any) => {

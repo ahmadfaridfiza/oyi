@@ -4,7 +4,7 @@ import styled from 'styled-components'
 import { BigNumber } from '@ethersproject/bignumber'
 import { MaxUint256 } from '@ethersproject/constants'
 import { Contract } from '@ethersproject/contracts'
-import { JsonRpcProvider, Web3Provider } from '@ethersproject/providers'
+import { JsonRpcProvider } from '@ethersproject/providers'
 import { formatUnits, parseUnits } from '@ethersproject/units'
 import { CurrencyAmount, JSBI, Native, Token } from '@pancakeswap/sdk'
 import { useTranslation } from '@pancakeswap/localization'
@@ -25,6 +25,8 @@ import {
 import ConnectWalletButton from 'components/ConnectWalletButton'
 import { ToastDescriptionWithTx } from 'components/Toast'
 import { useCallWithGasPrice } from 'hooks/useCallWithGasPrice'
+import { useEthersSigner } from 'hooks/useEthersSigner'
+import { useSwitchNetwork } from 'hooks/useSwitchNetwork'
 import useSWR from 'swr'
 import { useAccount, useChainId } from 'wagmi'
 import Page from 'views/Page'
@@ -116,16 +118,6 @@ const getQuoteErrorMessage = async (response: Response) => {
   return response.statusText
 }
 
-const getBrowserEthereum = () => (typeof window !== 'undefined' ? (window as any).ethereum : undefined)
-
-const getBrowserSigner = () => {
-  const ethereum = getBrowserEthereum()
-  if (!ethereum) {
-    throw new Error('Wallet provider not found')
-  }
-  return new Web3Provider(ethereum).getSigner()
-}
-
 const getBridgeReadProvider = (chainId: number) => {
   const chain = getBridgeChain(chainId)
   if (!chain?.rpcUrls?.[0]) {
@@ -187,44 +179,11 @@ const useBridgeCurrencyBalance = (account?: string, token?: BridgeToken) => {
   )
 }
 
-const switchBrowserChain = async (chainId: number) => {
-  const ethereum = getBrowserEthereum()
-  const chain = getBridgeChain(chainId)
-  if (!ethereum || !chain) {
-    throw new Error('Wallet provider not found')
-  }
-
-  const chainIdHex = `0x${chainId.toString(16)}`
-
-  try {
-    await ethereum.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: chainIdHex }],
-    })
-  } catch (error: any) {
-    if (error?.code !== 4902) {
-      throw error
-    }
-
-    await ethereum.request({
-      method: 'wallet_addEthereumChain',
-      params: [
-        {
-          chainId: chainIdHex,
-          chainName: chain.name,
-          nativeCurrency: chain.nativeCurrency,
-          rpcUrls: chain.rpcUrls,
-          blockExplorerUrls: chain.blockExplorerUrls,
-        },
-      ],
-    })
-  }
-}
-
 const Bridge = () => {
   const { t } = useTranslation()
   const { address: account } = useAccount()
   const connectedChainId = useChainId()
+  const { switchNetworkAsync, isLoading: isSwitching } = useSwitchNetwork()
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
 
@@ -236,25 +195,10 @@ const Bridge = () => {
   const [quote, setQuote] = useState<BridgeQuote | null>(null)
   const [quoteError, setQuoteError] = useState('')
   const [isQuoting, setIsQuoting] = useState(false)
-  const [isSwitching, setIsSwitching] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [isBridging, setIsBridging] = useState(false)
   const [txHash, setTxHash] = useState('')
-
-  const { data: browserChainId } = useSWR(
-    account ? ['bridgeBrowserChainId', account] : null,
-    async () => {
-      const ethereum = getBrowserEthereum()
-      if (!ethereum) return undefined
-      const chainIdHex = await ethereum.request({ method: 'eth_chainId' })
-      const nextChainId = Number.parseInt(chainIdHex, 16)
-      console.info('[Bridge] Wallet chain detected', { chainId: nextChainId })
-      return nextChainId
-    },
-    {
-      refreshInterval: 3000,
-    },
-  )
+  const { data: signer } = useEthersSigner({ chainId: fromChainId })
 
   const fromTokens = useMemo(() => getBridgeTokens(fromChainId), [fromChainId])
   const toTokens = useMemo(() => getBridgeTokens(toChainId), [toChainId])
@@ -276,16 +220,14 @@ const Bridge = () => {
     }
   }, [amount, fromToken])
 
-  const activeWalletChainId = browserChainId ?? connectedChainId
-
   const bridgeTokenContract = useMemo(() => {
-    if (!fromToken || fromToken.isNative || activeWalletChainId !== fromChainId) return null
+    if (!fromToken || fromToken.isNative || connectedChainId !== fromChainId || !signer) return null
     try {
-      return new Contract(fromToken.address, ERC20_ABI, getBrowserSigner())
+      return new Contract(fromToken.address, ERC20_ABI, signer)
     } catch {
       return null
     }
-  }, [activeWalletChainId, fromChainId, fromToken])
+  }, [connectedChainId, fromChainId, fromToken, signer])
   const spender = quote?.transactionRequest?.to
   const shouldApprove = Boolean(account && fromToken && !fromToken.isNative && spender && parsedAmount)
 
@@ -298,10 +240,10 @@ const Bridge = () => {
 
   const isApproved =
     !shouldApprove || !parsedAmount || (allowance ? BigNumber.from(allowance).gte(parsedAmount) : false)
-  const isWrongNetwork = Boolean(account && activeWalletChainId !== fromChainId)
+  const isWrongNetwork = Boolean(account && connectedChainId !== fromChainId)
   const hasEnoughBalance = parsedAmount && tokenBalance ? tokenBalance.rawBalance.gte(parsedAmount) : false
   const canQuote = Boolean(account && fromToken && toToken && parsedAmount && parsedAmount.gt(0) && hasEnoughBalance)
-  const canBridge = Boolean(account && quote?.transactionRequest?.to && isApproved && !isWrongNetwork)
+  const canBridge = Boolean(account && signer && quote?.transactionRequest?.to && isApproved && !isWrongNetwork)
 
   const resetQuote = useCallback(() => {
     setQuote(null)
@@ -386,24 +328,21 @@ const Bridge = () => {
   }, [bridgeTokenContract, callWithGasPrice, refreshAllowance, spender, t, toastError, toastSuccess])
 
   const handleSwitchNetwork = useCallback(async () => {
-    setIsSwitching(true)
     try {
-      await switchBrowserChain(fromChainId)
+      console.info('[Bridge] Switching network with Wagmi', { chainId: fromChainId })
+      await switchNetworkAsync(fromChainId)
     } catch (error) {
-      console.error(error)
+      console.error('[Bridge] Failed to switch network with Wagmi', error)
       toastError(t('Error'), t('Unable to switch network. Please switch it manually in your wallet.'))
-    } finally {
-      setIsSwitching(false)
     }
-  }, [fromChainId, t, toastError])
+  }, [fromChainId, switchNetworkAsync, t, toastError])
 
   const handleBridge = useCallback(async () => {
     const txRequest = quote?.transactionRequest
-    if (!txRequest?.to) return
+    if (!txRequest?.to || !signer) return
 
     setIsBridging(true)
     try {
-      const signer = getBrowserSigner()
       const tx = await signer.sendTransaction({
         to: txRequest.to,
         data: txRequest.data,
@@ -422,7 +361,7 @@ const Bridge = () => {
     } finally {
       setIsBridging(false)
     }
-  }, [quote, t, toastError, toastSuccess])
+  }, [quote, signer, t, toastError, toastSuccess])
 
   return (
     <Page>
