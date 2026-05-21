@@ -6,6 +6,7 @@ import { MaxUint256 } from '@ethersproject/constants'
 import { Contract } from '@ethersproject/contracts'
 import { JsonRpcProvider, Web3Provider } from '@ethersproject/providers'
 import { formatUnits, parseUnits } from '@ethersproject/units'
+import { CurrencyAmount, JSBI, Native, Token } from '@pancakeswap/sdk'
 import { useTranslation } from '@pancakeswap/localization'
 import {
   AutoRenewIcon,
@@ -91,6 +92,18 @@ const formatTokenAmount = (amount?: string, token?: BridgeToken) => {
   }
 }
 
+const getBridgeCurrency = (token?: BridgeToken) => {
+  if (!token) return undefined
+  if (token.isNative) {
+    try {
+      return Native.onChain(token.chainId)
+    } catch {
+      return new Token(token.chainId, token.address, token.decimals, token.symbol, token.name)
+    }
+  }
+  return new Token(token.chainId, token.address, token.decimals, token.symbol, token.name)
+}
+
 const getQuoteErrorMessage = async (response: Response) => {
   try {
     const body = await response.json()
@@ -122,6 +135,56 @@ const getBridgeReadProvider = (chainId: number) => {
     chainId: chain.id,
     name: chain.name,
   })
+}
+
+const useBridgeCurrencyBalance = (account?: string, token?: BridgeToken) => {
+  const currency = useMemo(() => getBridgeCurrency(token), [token])
+
+  return useSWR(
+    account && token && currency ? ['bridgeCurrencyBalance', account, token.chainId, token.address] : null,
+    async () => {
+      try {
+        console.info('[Bridge] Fetching currency balance', {
+          account,
+          chainId: token.chainId,
+          token: token.symbol,
+          tokenAddress: token.address,
+          isNative: Boolean(token.isNative),
+        })
+
+        const provider = getBridgeReadProvider(token.chainId)
+        const rawBalance = token.isNative
+          ? await provider.getBalance(account)
+          : await new Contract(token.address, ERC20_ABI, provider).balanceOf(account)
+        const currencyAmount = CurrencyAmount.fromRawAmount(currency, JSBI.BigInt(rawBalance.toString()))
+
+        console.info('[Bridge] Currency balance fetched', {
+          account,
+          chainId: token.chainId,
+          token: token.symbol,
+          rawBalance: rawBalance.toString(),
+          significantBalance: currencyAmount.toSignificant(6),
+        })
+
+        return {
+          rawBalance,
+          currencyAmount,
+        }
+      } catch (error) {
+        console.error('[Bridge] Failed to fetch currency balance', {
+          account,
+          chainId: token.chainId,
+          token: token.symbol,
+          tokenAddress: token.address,
+          error,
+        })
+        throw error
+      }
+    },
+    {
+      refreshInterval: 10000,
+    },
+  )
 }
 
 const switchBrowserChain = async (chainId: number) => {
@@ -231,54 +294,12 @@ const Bridge = () => {
     () => bridgeTokenContract.allowance(account, spender),
   )
 
-  const { data: tokenBalance } = useSWR(
-    account && fromToken && activeWalletChainId === fromChainId
-      ? ['bridgeTokenBalance', account, fromChainId, fromToken.address]
-      : null,
-    async () => {
-      try {
-        console.info('[Bridge] Fetching token balance', {
-          account,
-          chainId: fromChainId,
-          token: fromToken.symbol,
-          tokenAddress: fromToken.address,
-          isNative: Boolean(fromToken.isNative),
-        })
-
-        const provider = getBridgeReadProvider(fromChainId)
-        const balance = fromToken.isNative
-          ? await provider.getBalance(account)
-          : await new Contract(fromToken.address, ERC20_ABI, provider).balanceOf(account)
-
-        console.info('[Bridge] Token balance fetched', {
-          account,
-          chainId: fromChainId,
-          token: fromToken.symbol,
-          rawBalance: balance.toString(),
-          formattedBalance: formatTokenAmount(balance.toString(), fromToken),
-        })
-
-        return balance
-      } catch (error) {
-        console.error('[Bridge] Failed to fetch token balance', {
-          account,
-          chainId: fromChainId,
-          token: fromToken.symbol,
-          tokenAddress: fromToken.address,
-          error,
-        })
-        throw error
-      }
-    },
-    {
-      refreshInterval: 10000,
-    },
-  )
+  const { data: tokenBalance } = useBridgeCurrencyBalance(account, fromToken)
 
   const isApproved =
     !shouldApprove || !parsedAmount || (allowance ? BigNumber.from(allowance).gte(parsedAmount) : false)
   const isWrongNetwork = Boolean(account && activeWalletChainId !== fromChainId)
-  const hasEnoughBalance = parsedAmount && tokenBalance ? BigNumber.from(tokenBalance).gte(parsedAmount) : false
+  const hasEnoughBalance = parsedAmount && tokenBalance ? tokenBalance.rawBalance.gte(parsedAmount) : false
   const canQuote = Boolean(account && fromToken && toToken && parsedAmount && parsedAmount.gt(0) && hasEnoughBalance)
   const canBridge = Boolean(account && quote?.transactionRequest?.to && isApproved && !isWrongNetwork)
 
@@ -442,9 +463,11 @@ const Bridge = () => {
               <Box width="100%" style={{ flex: 1 }}>
                 <Flex justifyContent="space-between" alignItems="center">
                   <FieldLabel>{t('From Token')}</FieldLabel>
-                  {account && fromToken && activeWalletChainId === fromChainId ? (
+                  {account && fromToken ? (
                     <Text color="textSubtle" fontSize="12px" mb="8px">
-                      {t('Balance')}: {formatTokenAmount(tokenBalance?.toString(), fromToken)}
+                      {t('Balance: %balance%', {
+                        balance: tokenBalance?.currencyAmount?.toSignificant(6) ?? t('Loading'),
+                      })}
                     </Text>
                   ) : null}
                 </Flex>
