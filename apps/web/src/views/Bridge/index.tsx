@@ -26,7 +26,7 @@ import ConnectWalletButton from 'components/ConnectWalletButton'
 import { ToastDescriptionWithTx } from 'components/Toast'
 import { useCallWithGasPrice } from 'hooks/useCallWithGasPrice'
 import { useEthersSigner } from 'hooks/useEthersSigner'
-import { useSwitchNetwork } from 'hooks/useSwitchNetwork'
+import { useSwitchNetwork, useSwitchNetworkLocal } from 'hooks/useSwitchNetwork'
 import useSWR from 'swr'
 import { useAccount, useChainId } from 'wagmi'
 import { useRouter } from 'next/router'
@@ -186,6 +186,7 @@ const Bridge = () => {
   const { address: account } = useAccount()
   const connectedChainId = useChainId()
   const { switchNetworkAsync, isLoading: isSwitching } = useSwitchNetwork()
+  const switchNetworkLocal = useSwitchNetworkLocal()
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
 
@@ -260,12 +261,13 @@ const Bridge = () => {
       try {
         console.info('[Bridge] Switching network with Wagmi', { chainId, reason })
         await switchNetworkAsync(chainId)
+        switchNetworkLocal(chainId)
       } catch (error) {
         console.error('[Bridge] Failed to switch network with Wagmi', { chainId, reason, error })
         toastError(t('Error'), t('Unable to switch network. Please switch it manually in your wallet.'))
       }
     },
-    [account, connectedChainId, isSwitching, switchNetworkAsync, t, toastError],
+    [account, connectedChainId, isSwitching, switchNetworkAsync, switchNetworkLocal, t, toastError],
   )
 
   const handleFromChainChange = useCallback((nextChainId: number) => {

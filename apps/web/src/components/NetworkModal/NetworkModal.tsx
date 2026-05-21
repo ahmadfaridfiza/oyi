@@ -2,6 +2,7 @@ import { ModalV2 } from '@pancakeswap/uikit'
 import useActiveWeb3React from 'hooks/useActiveWeb3React'
 import { ChainId } from '@pancakeswap/sdk'
 import { useMemo } from 'react'
+import { useRouter } from 'next/router'
 import { atom, useAtom } from 'jotai'
 import { SUPPORT_ONLY_BSC } from 'config/constants/supportChains'
 import { CHAIN_IDS, chains } from 'utils/wagmi'
@@ -14,6 +15,7 @@ export const hideWrongNetworkModalAtom = atom(false)
 export const NetworkModal = ({ pageSupportedChains = SUPPORT_ONLY_BSC }: { pageSupportedChains?: number[] }) => {
   const { chainId, isWrongNetwork } = useActiveWeb3React()
   const [dismissWrongNetwork, setDismissWrongNetwork] = useAtom(hideWrongNetworkModalAtom)
+  const { pathname } = useRouter()
 
   const isBNBOnlyPage = useMemo(() => {
     return pageSupportedChains?.length === 1 && pageSupportedChains[0] === ChainId.BSC
@@ -23,6 +25,10 @@ export const NetworkModal = ({ pageSupportedChains = SUPPORT_ONLY_BSC }: { pageS
     () => Boolean(pageSupportedChains.length) && !pageSupportedChains.includes(chainId),
     [chainId, pageSupportedChains],
   )
+
+  if (pathname === '/bridge') {
+    return null
+  }
 
   if (isPageNotSupported && isBNBOnlyPage) {
     return (
