@@ -27,6 +27,8 @@ const TOKEN_LOGOS = {
   usdc: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
   usdt: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
   dai: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
+  arb: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/arbitrum/assets/0x912CE59144191C1204E64559FE8253a0e49E6548/logo.png',
+  op: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/optimism/assets/0x4200000000000000000000000000000000000042/logo.png',
 }
 
 export const BRIDGE_CHAINS: BridgeChain[] = [
@@ -167,6 +169,14 @@ export const BRIDGE_TOKENS: BridgeToken[] = [
   },
   {
     chainId: 42161,
+    address: '0x912CE59144191C1204E64559FE8253a0e49E6548',
+    symbol: 'ARB',
+    name: 'Arbitrum',
+    decimals: 18,
+    logoURI: TOKEN_LOGOS.arb,
+  },
+  {
+    chainId: 42161,
     address: LIFI_NATIVE_TOKEN_ADDRESS,
     symbol: 'ETH',
     name: 'Ether',
@@ -188,6 +198,14 @@ export const BRIDGE_TOKENS: BridgeToken[] = [
     name: 'Tether USD',
     decimals: 6,
     logoURI: TOKEN_LOGOS.usdt,
+  },
+  {
+    chainId: 10,
+    address: '0x4200000000000000000000000000000000000042',
+    symbol: 'OP',
+    name: 'Optimism',
+    decimals: 18,
+    logoURI: TOKEN_LOGOS.op,
   },
   {
     chainId: 10,
