@@ -5,6 +5,13 @@ export type BridgeChain = {
   id: number
   name: string
   shortName: string
+  rpcUrls: string[]
+  nativeCurrency: {
+    name: string
+    symbol: string
+    decimals: number
+  }
+  blockExplorerUrls: string[]
 }
 
 export type BridgeToken = {
@@ -17,11 +24,46 @@ export type BridgeToken = {
 }
 
 export const BRIDGE_CHAINS: BridgeChain[] = [
-  { id: 137, name: 'Polygon', shortName: 'Polygon' },
-  { id: 56, name: 'BNB Chain', shortName: 'BNB' },
-  { id: 1, name: 'Ethereum', shortName: 'ETH' },
-  { id: 42161, name: 'Arbitrum One', shortName: 'Arbitrum' },
-  { id: 10, name: 'Optimism', shortName: 'Optimism' },
+  {
+    id: 137,
+    name: 'Polygon',
+    shortName: 'Polygon',
+    rpcUrls: ['https://polygon-rpc.com'],
+    nativeCurrency: { name: 'POL', symbol: 'POL', decimals: 18 },
+    blockExplorerUrls: ['https://polygonscan.com'],
+  },
+  {
+    id: 56,
+    name: 'BNB Chain',
+    shortName: 'BNB',
+    rpcUrls: ['https://bsc-dataseed.binance.org'],
+    nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+    blockExplorerUrls: ['https://bscscan.com'],
+  },
+  {
+    id: 1,
+    name: 'Ethereum',
+    shortName: 'ETH',
+    rpcUrls: ['https://ethereum-rpc.publicnode.com'],
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    blockExplorerUrls: ['https://etherscan.io'],
+  },
+  {
+    id: 42161,
+    name: 'Arbitrum One',
+    shortName: 'Arbitrum',
+    rpcUrls: ['https://arb1.arbitrum.io/rpc'],
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    blockExplorerUrls: ['https://arbiscan.io'],
+  },
+  {
+    id: 10,
+    name: 'Optimism',
+    shortName: 'Optimism',
+    rpcUrls: ['https://mainnet.optimism.io'],
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    blockExplorerUrls: ['https://optimistic.etherscan.io'],
+  },
 ]
 
 export const BRIDGE_TOKENS: BridgeToken[] = [

@@ -3,6 +3,8 @@ import { useCallback, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import { BigNumber } from '@ethersproject/bignumber'
 import { MaxUint256 } from '@ethersproject/constants'
+import { Contract } from '@ethersproject/contracts'
+import { Web3Provider } from '@ethersproject/providers'
 import { formatUnits, parseUnits } from '@ethersproject/units'
 import { useTranslation } from '@pancakeswap/localization'
 import {
@@ -22,12 +24,10 @@ import {
 import ConnectWalletButton from 'components/ConnectWalletButton'
 import { ToastDescriptionWithTx } from 'components/Toast'
 import { useCallWithGasPrice } from 'hooks/useCallWithGasPrice'
-import { useTokenContract } from 'hooks/useContract'
-import { useEthersSigner } from 'hooks/useEthersSigner'
-import { useSwitchNetwork } from 'hooks/useSwitchNetwork'
 import useSWR from 'swr'
 import { useAccount, useChainId } from 'wagmi'
 import Page from 'views/Page'
+import ERC20_ABI from 'config/abi/erc20.json'
 import {
   BRIDGE_CHAINS,
   BridgeToken,
@@ -103,12 +103,54 @@ const getQuoteErrorMessage = async (response: Response) => {
   return response.statusText
 }
 
+const getBrowserEthereum = () => (typeof window !== 'undefined' ? (window as any).ethereum : undefined)
+
+const getBrowserSigner = () => {
+  const ethereum = getBrowserEthereum()
+  if (!ethereum) {
+    throw new Error('Wallet provider not found')
+  }
+  return new Web3Provider(ethereum).getSigner()
+}
+
+const switchBrowserChain = async (chainId: number) => {
+  const ethereum = getBrowserEthereum()
+  const chain = getBridgeChain(chainId)
+  if (!ethereum || !chain) {
+    throw new Error('Wallet provider not found')
+  }
+
+  const chainIdHex = `0x${chainId.toString(16)}`
+
+  try {
+    await ethereum.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: chainIdHex }],
+    })
+  } catch (error: any) {
+    if (error?.code !== 4902) {
+      throw error
+    }
+
+    await ethereum.request({
+      method: 'wallet_addEthereumChain',
+      params: [
+        {
+          chainId: chainIdHex,
+          chainName: chain.name,
+          nativeCurrency: chain.nativeCurrency,
+          rpcUrls: chain.rpcUrls,
+          blockExplorerUrls: chain.blockExplorerUrls,
+        },
+      ],
+    })
+  }
+}
+
 const Bridge = () => {
   const { t } = useTranslation()
   const { address: account } = useAccount()
   const connectedChainId = useChainId()
-  const { data: signer } = useEthersSigner()
-  const { switchNetworkAsync, isLoading: isSwitching } = useSwitchNetwork()
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
 
@@ -120,6 +162,7 @@ const Bridge = () => {
   const [quote, setQuote] = useState<BridgeQuote | null>(null)
   const [quoteError, setQuoteError] = useState('')
   const [isQuoting, setIsQuoting] = useState(false)
+  const [isSwitching, setIsSwitching] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [isBridging, setIsBridging] = useState(false)
   const [txHash, setTxHash] = useState('')
@@ -144,7 +187,14 @@ const Bridge = () => {
     }
   }, [amount, fromToken])
 
-  const bridgeTokenContract = useTokenContract(fromToken?.isNative ? undefined : fromToken?.address)
+  const bridgeTokenContract = useMemo(() => {
+    if (!fromToken || fromToken.isNative || connectedChainId !== fromChainId) return null
+    try {
+      return new Contract(fromToken.address, ERC20_ABI, getBrowserSigner())
+    } catch {
+      return null
+    }
+  }, [connectedChainId, fromChainId, fromToken])
   const spender = quote?.transactionRequest?.to
   const shouldApprove = Boolean(account && fromToken && !fromToken.isNative && spender && parsedAmount)
 
@@ -157,7 +207,7 @@ const Bridge = () => {
     !shouldApprove || !parsedAmount || (allowance ? BigNumber.from(allowance).gte(parsedAmount) : false)
   const isWrongNetwork = Boolean(account && connectedChainId !== fromChainId)
   const canQuote = Boolean(account && fromToken && toToken && parsedAmount && parsedAmount.gt(0))
-  const canBridge = Boolean(account && signer && quote?.transactionRequest?.to && isApproved && !isWrongNetwork)
+  const canBridge = Boolean(account && quote?.transactionRequest?.to && isApproved && !isWrongNetwork)
 
   const resetQuote = useCallback(() => {
     setQuote(null)
@@ -227,12 +277,25 @@ const Bridge = () => {
     }
   }, [bridgeTokenContract, callWithGasPrice, refreshAllowance, spender, t, toastError, toastSuccess])
 
+  const handleSwitchNetwork = useCallback(async () => {
+    setIsSwitching(true)
+    try {
+      await switchBrowserChain(fromChainId)
+    } catch (error) {
+      console.error(error)
+      toastError(t('Error'), t('Unable to switch network. Please switch it manually in your wallet.'))
+    } finally {
+      setIsSwitching(false)
+    }
+  }, [fromChainId, t, toastError])
+
   const handleBridge = useCallback(async () => {
     const txRequest = quote?.transactionRequest
-    if (!signer || !txRequest?.to) return
+    if (!txRequest?.to) return
 
     setIsBridging(true)
     try {
+      const signer = getBrowserSigner()
       const tx = await signer.sendTransaction({
         to: txRequest.to,
         data: txRequest.data,
@@ -251,7 +314,7 @@ const Bridge = () => {
     } finally {
       setIsBridging(false)
     }
-  }, [quote, signer, t, toastError, toastSuccess])
+  }, [quote, t, toastError, toastSuccess])
 
   return (
     <Page>
@@ -382,7 +445,7 @@ const Bridge = () => {
             ) : isWrongNetwork ? (
               <Button
                 width="100%"
-                onClick={() => switchNetworkAsync(fromChainId)}
+                onClick={handleSwitchNetwork}
                 disabled={isSwitching}
                 endIcon={isSwitching ? <AutoRenewIcon spin color="currentColor" /> : undefined}
               >
