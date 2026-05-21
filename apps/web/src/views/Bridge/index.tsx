@@ -167,6 +167,21 @@ const Bridge = () => {
   const [isBridging, setIsBridging] = useState(false)
   const [txHash, setTxHash] = useState('')
 
+  const { data: browserChainId } = useSWR(
+    account ? ['bridgeBrowserChainId', account] : null,
+    async () => {
+      const ethereum = getBrowserEthereum()
+      if (!ethereum) return undefined
+      const chainIdHex = await ethereum.request({ method: 'eth_chainId' })
+      const nextChainId = Number.parseInt(chainIdHex, 16)
+      console.info('[Bridge] Wallet chain detected', { chainId: nextChainId })
+      return nextChainId
+    },
+    {
+      refreshInterval: 3000,
+    },
+  )
+
   const fromTokens = useMemo(() => getBridgeTokens(fromChainId), [fromChainId])
   const toTokens = useMemo(() => getBridgeTokens(toChainId), [toChainId])
   const fromToken = useMemo(
@@ -187,14 +202,16 @@ const Bridge = () => {
     }
   }, [amount, fromToken])
 
+  const activeWalletChainId = browserChainId ?? connectedChainId
+
   const bridgeTokenContract = useMemo(() => {
-    if (!fromToken || fromToken.isNative || connectedChainId !== fromChainId) return null
+    if (!fromToken || fromToken.isNative || activeWalletChainId !== fromChainId) return null
     try {
       return new Contract(fromToken.address, ERC20_ABI, getBrowserSigner())
     } catch {
       return null
     }
-  }, [connectedChainId, fromChainId, fromToken])
+  }, [activeWalletChainId, fromChainId, fromToken])
   const spender = quote?.transactionRequest?.to
   const shouldApprove = Boolean(account && fromToken && !fromToken.isNative && spender && parsedAmount)
 
@@ -204,17 +221,43 @@ const Bridge = () => {
   )
 
   const { data: tokenBalance } = useSWR(
-    account && fromToken && connectedChainId === fromChainId
+    account && fromToken && activeWalletChainId === fromChainId
       ? ['bridgeTokenBalance', account, fromChainId, fromToken.address]
       : null,
     async () => {
-      if (fromToken.isNative) {
-        return getBrowserSigner().provider.getBalance(account)
+      try {
+        console.info('[Bridge] Fetching token balance', {
+          account,
+          chainId: fromChainId,
+          token: fromToken.symbol,
+          tokenAddress: fromToken.address,
+          isNative: Boolean(fromToken.isNative),
+        })
+
+        const provider = new Web3Provider(getBrowserEthereum())
+        const balance = fromToken.isNative
+          ? await provider.getBalance(account)
+          : await new Contract(fromToken.address, ERC20_ABI, provider).balanceOf(account)
+
+        console.info('[Bridge] Token balance fetched', {
+          account,
+          chainId: fromChainId,
+          token: fromToken.symbol,
+          rawBalance: balance.toString(),
+          formattedBalance: formatTokenAmount(balance.toString(), fromToken),
+        })
+
+        return balance
+      } catch (error) {
+        console.error('[Bridge] Failed to fetch token balance', {
+          account,
+          chainId: fromChainId,
+          token: fromToken.symbol,
+          tokenAddress: fromToken.address,
+          error,
+        })
+        throw error
       }
-      if (!bridgeTokenContract) {
-        return undefined
-      }
-      return bridgeTokenContract.balanceOf(account)
     },
     {
       refreshInterval: 10000,
@@ -223,7 +266,7 @@ const Bridge = () => {
 
   const isApproved =
     !shouldApprove || !parsedAmount || (allowance ? BigNumber.from(allowance).gte(parsedAmount) : false)
-  const isWrongNetwork = Boolean(account && connectedChainId !== fromChainId)
+  const isWrongNetwork = Boolean(account && activeWalletChainId !== fromChainId)
   const hasEnoughBalance = parsedAmount && tokenBalance ? BigNumber.from(tokenBalance).gte(parsedAmount) : false
   const canQuote = Boolean(account && fromToken && toToken && parsedAmount && parsedAmount.gt(0) && hasEnoughBalance)
   const canBridge = Boolean(account && quote?.transactionRequest?.to && isApproved && !isWrongNetwork)
@@ -266,13 +309,27 @@ const Bridge = () => {
     })
 
     try {
+      console.info('[Bridge] Fetching quote', {
+        account,
+        fromChainId,
+        toChainId,
+        fromToken: fromToken.symbol,
+        toToken: toToken.symbol,
+        fromAmount: parsedAmount.toString(),
+      })
       const response = await fetch(`/api/bridge/quote?${params.toString()}`)
       if (!response.ok) {
         throw new Error(await getQuoteErrorMessage(response))
       }
-      setQuote((await response.json()) as BridgeQuote)
+      const nextQuote = (await response.json()) as BridgeQuote
+      console.info('[Bridge] Quote fetched', {
+        route: nextQuote.toolDetails?.name || nextQuote.tool,
+        toAmount: nextQuote.estimate?.toAmount,
+        spender: nextQuote.transactionRequest?.to,
+      })
+      setQuote(nextQuote)
     } catch (error) {
-      console.error(error)
+      console.error('[Bridge] Failed to fetch quote', error)
       setQuoteError(error instanceof Error ? error.message : t('Unable to get bridge quote.'))
     } finally {
       setIsQuoting(false)
@@ -372,7 +429,14 @@ const Bridge = () => {
 
             <Flex mb="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
               <Box width="100%" style={{ flex: 1 }}>
-                <FieldLabel>{t('From Token')}</FieldLabel>
+                <Flex justifyContent="space-between" alignItems="center">
+                  <FieldLabel>{t('From Token')}</FieldLabel>
+                  {account && fromToken && activeWalletChainId === fromChainId ? (
+                    <Text color="textSubtle" fontSize="12px" mb="8px">
+                      {t('Balance')}: {formatTokenAmount(tokenBalance?.toString(), fromToken)}
+                    </Text>
+                  ) : null}
+                </Flex>
                 <Select
                   value={fromTokenAddress}
                   onChange={(event) => {
@@ -416,16 +480,6 @@ const Bridge = () => {
                 }}
                 placeholder="0.0"
               />
-              {account && fromToken && connectedChainId === fromChainId ? (
-                <Flex justifyContent="space-between" mt="8px">
-                  <Text color="textSubtle" fontSize="12px">
-                    {t('Balance')}
-                  </Text>
-                  <Text color="textSubtle" fontSize="12px">
-                    {formatTokenAmount(tokenBalance?.toString(), fromToken)} {fromToken.symbol}
-                  </Text>
-                </Flex>
-              ) : null}
             </Box>
 
             {quote ? (
