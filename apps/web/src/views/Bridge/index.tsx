@@ -4,7 +4,7 @@ import styled from 'styled-components'
 import { BigNumber } from '@ethersproject/bignumber'
 import { MaxUint256 } from '@ethersproject/constants'
 import { Contract } from '@ethersproject/contracts'
-import { Web3Provider } from '@ethersproject/providers'
+import { JsonRpcProvider, Web3Provider } from '@ethersproject/providers'
 import { formatUnits, parseUnits } from '@ethersproject/units'
 import { useTranslation } from '@pancakeswap/localization'
 import {
@@ -111,6 +111,17 @@ const getBrowserSigner = () => {
     throw new Error('Wallet provider not found')
   }
   return new Web3Provider(ethereum).getSigner()
+}
+
+const getBridgeReadProvider = (chainId: number) => {
+  const chain = getBridgeChain(chainId)
+  if (!chain?.rpcUrls?.[0]) {
+    throw new Error(`RPC URL is not configured for chain ${chainId}`)
+  }
+  return new JsonRpcProvider(chain.rpcUrls[0], {
+    chainId: chain.id,
+    name: chain.name,
+  })
 }
 
 const switchBrowserChain = async (chainId: number) => {
@@ -234,7 +245,7 @@ const Bridge = () => {
           isNative: Boolean(fromToken.isNative),
         })
 
-        const provider = new Web3Provider(getBrowserEthereum())
+        const provider = getBridgeReadProvider(fromChainId)
         const balance = fromToken.isNative
           ? await provider.getBalance(account)
           : await new Contract(fromToken.address, ERC20_ABI, provider).balanceOf(account)
