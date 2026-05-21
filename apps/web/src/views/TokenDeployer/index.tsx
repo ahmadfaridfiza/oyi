@@ -78,7 +78,6 @@ const TokenDeployer = () => {
   const [isApproving, setIsApproving] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [createdTokenAddress, setCreatedTokenAddress] = useState('')
-  const [verificationMessage, setVerificationMessage] = useState('')
 
   const decimalsNumber = useMemo(() => Number(decimals), [decimals])
   const parsedSupply = useMemo(() => parseTotalSupply(totalSupply, decimalsNumber), [totalSupply, decimalsNumber])
@@ -131,7 +130,6 @@ const TokenDeployer = () => {
 
     setIsCreating(true)
     setCreatedTokenAddress('')
-    setVerificationMessage('')
     try {
       const tx = await callWithGasPrice(tokenDeployerContract, 'createToken', [
         name.trim(),
@@ -145,35 +143,6 @@ const TokenDeployer = () => {
       const tokenAddress = getCreatedTokenAddress(receipt, tokenDeployerContract)
       if (tokenAddress) {
         setCreatedTokenAddress(tokenAddress)
-        setVerificationMessage(t('Submitting contract verification to Polygonscan...'))
-        fetch('/api/token-deployer/verify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chainId,
-            tokenAddress,
-            name: name.trim(),
-            symbol: symbol.trim().toUpperCase(),
-            decimals: decimalsNumber,
-            totalSupply: parsedSupply.toString(),
-            mintable,
-            burnable,
-            owner: account,
-          }),
-        })
-          .then((response) => response.json())
-          .then((verification) => {
-            if (verification?.guid) {
-              setVerificationMessage(t('Verification submitted to Polygonscan. It may take a few minutes to complete.'))
-              return
-            }
-            setVerificationMessage(verification?.error || t('Verification could not be submitted.'))
-          })
-          .catch(() => {
-            setVerificationMessage(t('Verification could not be submitted.'))
-          })
       }
       toastSuccess(t('Token Created'), <ToastDescriptionWithTx txHash={receipt.transactionHash} />)
       refreshAllowance()
@@ -188,8 +157,6 @@ const TokenDeployer = () => {
     burnable,
     callWithGasPrice,
     canCreate,
-    account,
-    chainId,
     decimalsNumber,
     mintable,
     name,
@@ -339,11 +306,6 @@ const TokenDeployer = () => {
                       tooltipMessage={t('Token address copied')}
                     />
                   </Flex>
-                  {verificationMessage ? (
-                    <Text color="textSubtle" fontSize="12px" mt="8px">
-                      {verificationMessage}
-                    </Text>
-                  ) : null}
                 </MessageText>
               </Message>
             ) : null}
