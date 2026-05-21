@@ -3,6 +3,23 @@ import { z } from 'zod'
 import { BRIDGE_INTEGRATOR } from 'views/Bridge/config'
 
 const LIFI_QUOTE_ENDPOINT = 'https://li.quest/v1/quote'
+const DEFAULT_LIFI_INTEGRATOR_FEE = '0.005'
+
+const getLifiIntegratorFee = () => {
+  const fee = process.env.LIFI_INTEGRATOR_FEE || DEFAULT_LIFI_INTEGRATOR_FEE
+
+  if (/^(0(\.\d+)?|1(\.0+)?)$/.test(fee)) {
+    return fee
+  }
+
+  console.error(`Invalid LIFI_INTEGRATOR_FEE "${fee}", falling back to ${DEFAULT_LIFI_INTEGRATOR_FEE}`)
+  return DEFAULT_LIFI_INTEGRATOR_FEE
+}
+
+const getLifiHeaders = () => ({
+  Accept: 'application/json',
+  ...(process.env.LIFI_API_KEY ? { 'x-lifi-api-key': process.env.LIFI_API_KEY } : {}),
+})
 
 const zQuoteQuery = z.object({
   fromChain: z.coerce.number().int().positive(),
@@ -46,13 +63,12 @@ const handler: NextApiHandler = async (req, res) => {
     fromAddress: parsed.data.fromAddress,
     slippage: parsed.data.slippage ?? '0.005',
     integrator: BRIDGE_INTEGRATOR,
+    fee: getLifiIntegratorFee(),
   })
 
   try {
     const response = await fetch(`${LIFI_QUOTE_ENDPOINT}?${params.toString()}`, {
-      headers: {
-        Accept: 'application/json',
-      },
+      headers: getLifiHeaders(),
     })
 
     if (!response.ok) {

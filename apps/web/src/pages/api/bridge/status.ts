@@ -3,6 +3,11 @@ import { z } from 'zod'
 
 const LIFI_STATUS_ENDPOINT = 'https://li.quest/v1/status'
 
+const getLifiHeaders = () => ({
+  Accept: 'application/json',
+  ...(process.env.LIFI_API_KEY ? { 'x-lifi-api-key': process.env.LIFI_API_KEY } : {}),
+})
+
 const zStatusQuery = z.object({
   txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
   fromChain: z.coerce.number().int().positive(),
@@ -33,9 +38,7 @@ const handler: NextApiHandler = async (req, res) => {
 
   try {
     const response = await fetch(`${LIFI_STATUS_ENDPOINT}?${params.toString()}`, {
-      headers: {
-        Accept: 'application/json',
-      },
+      headers: getLifiHeaders(),
     })
     const body = await response.json()
 
