@@ -24,6 +24,7 @@ export type BridgeToken = {
 }
 
 const TOKEN_LOGOS = {
+  eth: '/images/chains/1.png',
   usdc: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
   usdt: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
   dai: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
@@ -142,6 +143,7 @@ export const BRIDGE_TOKENS: BridgeToken[] = [
     name: 'Ether',
     decimals: 18,
     isNative: true,
+    logoURI: TOKEN_LOGOS.eth,
   },
   {
     chainId: 1,
@@ -182,6 +184,7 @@ export const BRIDGE_TOKENS: BridgeToken[] = [
     name: 'Ether',
     decimals: 18,
     isNative: true,
+    logoURI: TOKEN_LOGOS.eth,
   },
   {
     chainId: 42161,
@@ -214,6 +217,7 @@ export const BRIDGE_TOKENS: BridgeToken[] = [
     name: 'Ether',
     decimals: 18,
     isNative: true,
+    logoURI: TOKEN_LOGOS.eth,
   },
   {
     chainId: 10,

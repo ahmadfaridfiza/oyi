@@ -104,11 +104,11 @@ const FieldLabel = ({ children }: { children: ReactNode }) => (
 )
 
 const BridgeTokenLogo = ({ token }: { token: BridgeToken }) => {
-  if (token.isNative) {
-    return <ChainLogo chainId={token.chainId} width={24} height={24} />
-  }
   if (token.logoURI) {
     return <TokenLogo srcs={[token.logoURI]} width="24px" height="24px" style={{ borderRadius: '50%' }} />
+  }
+  if (token.isNative) {
+    return <ChainLogo chainId={token.chainId} width={24} height={24} />
   }
   return <CurrencyLogo currency={getBridgeCurrency(token)} size="24px" />
 }
