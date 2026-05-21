@@ -10,7 +10,7 @@ export const CHAIN_QUERY_NAME = {
   [ChainId.BSC_TESTNET]: 'polygonMumbai',
   42161: 'arbitrum',
   10: 'optimism',
-} satisfies Record<ChainId, string>
+} satisfies Record<number, string>
 
 const CHAIN_QUERY_NAME_TO_ID = invert(CHAIN_QUERY_NAME)
 
