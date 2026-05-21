@@ -11,9 +11,16 @@ import {
 } from 'config/abi/types'
 import zapAbi from 'config/abi/zap.json'
 import tokenDeployerAbi from 'config/abi/tokenDeployer.json'
+import tokenLockerAbi from 'config/abi/tokenLocker.json'
 import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
 import { useMemo } from 'react'
-import { getMulticallAddress, getPredictionsV1Address, getTokenDeployerAddress, getZapAddress } from 'utils/addressHelpers'
+import {
+  getMulticallAddress,
+  getPredictionsV1Address,
+  getTokenDeployerAddress,
+  getTokenLockerAddress,
+  getZapAddress,
+} from 'utils/addressHelpers'
 import {
   getAnniversaryAchievementContract,
   getBCakeFarmBoosterContract,
@@ -357,6 +364,11 @@ export function useZapContract(withSignerIfPossible = true) {
 export function useTokenDeployerContract(withSignerIfPossible = true) {
   const { chainId } = useActiveChainId()
   return useContract(getTokenDeployerAddress(chainId), tokenDeployerAbi, withSignerIfPossible)
+}
+
+export function useTokenLockerContract(withSignerIfPossible = true) {
+  const { chainId } = useActiveChainId()
+  return useContract(getTokenLockerAddress(chainId), tokenLockerAbi, withSignerIfPossible)
 }
 
 export function useBCakeFarmBoosterContract(withSignerIfPossible = true) {

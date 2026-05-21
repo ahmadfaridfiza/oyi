@@ -114,6 +114,10 @@ export const getTokenDeployerAddress = (chainId?: number) => {
   return getAddress(addresses.tokenDeployer, chainId)
 }
 
+export const getTokenLockerAddress = (chainId?: number) => {
+  return getAddress(addresses.tokenLocker, chainId)
+}
+
 export const getICakeAddress = () => {
   return getAddress(addresses.iCake)
 }

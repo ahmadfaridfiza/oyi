@@ -67,6 +67,18 @@ const config: (
           label: t('Token Deployer'),
           href: '/token-deployer',
         },
+        {
+          label: t('Token Locker'),
+          href: '/token-locker',
+        },
+        {
+          label: t('My Locks'),
+          href: '/token-locker/my-locks',
+        },
+        {
+          label: t('All Locks'),
+          href: '/token-locker/all-locks',
+        },
         // {
         //   label: t('Perpetual'),
         //   href: getPerpetualUrl({
