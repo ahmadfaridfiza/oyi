@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import { BigNumber } from '@ethersproject/bignumber'
 import { MaxUint256 } from '@ethersproject/constants'
 import { Contract } from '@ethersproject/contracts'
 import { JsonRpcProvider } from '@ethersproject/providers'
 import { formatUnits, parseUnits } from '@ethersproject/units'
-import { CurrencyAmount, JSBI, Native, Token } from '@pancakeswap/sdk'
+import { ChainId, CurrencyAmount, JSBI, Native, Token } from '@pancakeswap/sdk'
 import { useTranslation } from '@pancakeswap/localization'
 import {
   AutoRenewIcon,
@@ -29,6 +29,7 @@ import { useEthersSigner } from 'hooks/useEthersSigner'
 import { useSwitchNetwork } from 'hooks/useSwitchNetwork'
 import useSWR from 'swr'
 import { useAccount, useChainId } from 'wagmi'
+import { useRouter } from 'next/router'
 import Page from 'views/Page'
 import ERC20_ABI from 'config/abi/erc20.json'
 import {
@@ -181,6 +182,7 @@ const useBridgeCurrencyBalance = (account?: string, token?: BridgeToken) => {
 
 const Bridge = () => {
   const { t } = useTranslation()
+  const router = useRouter()
   const { address: account } = useAccount()
   const connectedChainId = useChainId()
   const { switchNetworkAsync, isLoading: isSwitching } = useSwitchNetwork()
@@ -251,12 +253,28 @@ const Bridge = () => {
     setTxHash('')
   }, [])
 
+  const requestSwitchNetwork = useCallback(
+    async (chainId: number, reason: string) => {
+      if (!account || connectedChainId === chainId || isSwitching) return
+
+      try {
+        console.info('[Bridge] Switching network with Wagmi', { chainId, reason })
+        await switchNetworkAsync(chainId)
+      } catch (error) {
+        console.error('[Bridge] Failed to switch network with Wagmi', { chainId, reason, error })
+        toastError(t('Error'), t('Unable to switch network. Please switch it manually in your wallet.'))
+      }
+    },
+    [account, connectedChainId, isSwitching, switchNetworkAsync, t, toastError],
+  )
+
   const handleFromChainChange = useCallback((nextChainId: number) => {
     const tokens = getBridgeTokens(nextChainId)
     setFromChainId(nextChainId)
     setFromTokenAddress(tokens[0]?.address ?? LIFI_NATIVE_TOKEN_ADDRESS)
     resetQuote()
-  }, [resetQuote])
+    requestSwitchNetwork(nextChainId, 'from-chain-change')
+  }, [requestSwitchNetwork, resetQuote])
 
   const handleToChainChange = useCallback((nextChainId: number) => {
     const tokens = getBridgeTokens(nextChainId)
@@ -328,14 +346,20 @@ const Bridge = () => {
   }, [bridgeTokenContract, callWithGasPrice, refreshAllowance, spender, t, toastError, toastSuccess])
 
   const handleSwitchNetwork = useCallback(async () => {
-    try {
-      console.info('[Bridge] Switching network with Wagmi', { chainId: fromChainId })
-      await switchNetworkAsync(fromChainId)
-    } catch (error) {
-      console.error('[Bridge] Failed to switch network with Wagmi', error)
-      toastError(t('Error'), t('Unable to switch network. Please switch it manually in your wallet.'))
+    requestSwitchNetwork(fromChainId, 'bridge-button')
+  }, [fromChainId, requestSwitchNetwork])
+
+  useEffect(() => {
+    const switchBackToPolygon = (nextUrl: string) => {
+      if (nextUrl.startsWith('/bridge') || nextUrl.includes('/bridge?')) return
+      requestSwitchNetwork(ChainId.BSC, 'leaving-bridge')
     }
-  }, [fromChainId, switchNetworkAsync, t, toastError])
+
+    router.events.on('routeChangeStart', switchBackToPolygon)
+    return () => {
+      router.events.off('routeChangeStart', switchBackToPolygon)
+    }
+  }, [requestSwitchNetwork, router.events])
 
   const handleBridge = useCallback(async () => {
     const txRequest = quote?.transactionRequest

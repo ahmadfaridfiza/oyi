@@ -35,7 +35,7 @@ export const BRIDGE_CHAINS: BridgeChain[] = [
     id: 56,
     name: 'BNB Chain',
     shortName: 'BNB',
-    rpcUrls: ['https://bsc-dataseed.binance.org'],
+    rpcUrls: ['https://bsc-dataseed.bnbchain.org'],
     nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
     blockExplorerUrls: ['https://bscscan.com'],
   },
