@@ -5,8 +5,7 @@ import {
   SwapFillIcon,
   EarnFillIcon,
   EarnIcon,
-  LockIcon,
-  SmartContractIcon,
+  HammerIcon,
   TrophyIcon,
   TrophyFillIcon,
   // NftIcon,
@@ -195,35 +194,41 @@ const config: (
     //       href: 'https://docs.pancakeswap.finance',
     //       type: DropdownMenuItemType.EXTERNAL_LINK,
     //     },
-    {
-      label: t('Token Deployer'),
-      href: '/token-deployer',
-      icon: SmartContractIcon,
-      items: [
-        {
-          label: t('Create Token'),
-          href: '/token-deployer',
-        },
-      ].map((item) => addMenuItemSupported(item, chainId)),
-    },
+    
     {
       label: t('Tools'),
       href: '/token-locker',
-      icon: LockIcon,
+      icon: HammerIcon,
       items: [
         {
-          label: t('Create Locker'),
+          label: t('Token Deployer'),
+          href: '/token-deployer',
+          items: [
+            {
+              label: t('Create Token'),
+              href: '/token-deployer',
+            },
+          ].map((item) => addMenuItemSupported(item, chainId)),
+        },
+        {
+          label: t('Token Locker'),
           href: '/token-locker',
+          items: [
+            {
+              label: t('Create Locker'),
+              href: '/token-locker',
+            },
+            {
+              label: t('My Locks'),
+              href: '/token-locker/my-locks',
+            },
+            {
+              label: t('All Locks'),
+              href: '/token-locker/all-locks',
+            },
+          ].map((item) => addMenuItemSupported(item, chainId)),
         },
-        {
-          label: t('My Locks'),
-          href: '/token-locker/my-locks',
-        },
-        {
-          label: t('All Locks'),
-          href: '/token-locker/all-locks',
-        },
-      ].map((item) => addMenuItemSupported(item, chainId)),
+      ]
     },
     {
       label: t('Lottery'),
