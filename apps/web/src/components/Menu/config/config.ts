@@ -63,22 +63,6 @@ const config: (
           label: t('Liquidity'),
           href: '/liquidity',
         },
-        {
-          label: t('Token Deployer'),
-          href: '/token-deployer',
-        },
-        {
-          label: t('Token Locker'),
-          href: '/token-locker',
-        },
-        {
-          label: t('My Locks'),
-          href: '/token-locker/my-locks',
-        },
-        {
-          label: t('All Locks'),
-          href: '/token-locker/all-locks',
-        },
         // {
         //   label: t('Perpetual'),
         //   href: getPerpetualUrl({
@@ -233,6 +217,30 @@ const config: (
         //   image: '/images/decorations/lottery.png',
         // },
       ],
+    },
+    {
+      label: t('Tools'),
+      href: '/token-deployer',
+      icon: MoreIcon,
+      showItemsOnMobile: false,
+      items: [
+        {
+          label: t('Token Deployer'),
+          href: '/token-deployer',
+        },
+        {
+          label: t('Create Locker'),
+          href: '/token-locker',
+        },
+        {
+          label: t('My Locks'),
+          href: '/token-locker/my-locks',
+        },
+        {
+          label: t('All Locks'),
+          href: '/token-locker/all-locks',
+        },
+      ].map((item) => addMenuItemSupported(item, chainId)),
     },
     // {
     //   label: t('NFT (Coming Soon)'),
