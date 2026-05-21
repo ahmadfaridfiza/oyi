@@ -1,57 +1,10 @@
 import { Box, PancakeTheme } from '@pancakeswap/uikit'
-import { darkColors, lightColors } from '@pancakeswap/ui/tokens/colors'
 import { useMemo } from 'react'
 import { FEE_COLLECTOR, FEE_TENTH_BPS, PARTNER_ID } from './config'
-
-const getWidgetTheme = (theme: PancakeTheme) => {
-  const colors = theme.isDark ? darkColors : lightColors
-
-  return {
-    palette: {
-      type: theme.isDark ? 'dark' : 'light',
-      primary: {
-        main: colors.primary,
-        contrastText: colors.invertedContrast,
-      },
-      info: {
-        main: colors.primary,
-        light: colors.invertedContrast,
-      },
-      success: {
-        main: colors.success,
-      },
-      error: {
-        main: colors.failure,
-      },
-      warning: {
-        main: colors.warning,
-      },
-      text: {
-        primary: colors.text,
-        secondary: colors.textSubtle,
-        disabled: colors.textDisabled,
-      },
-      divider: colors.cardBorder,
-      background: {
-        paper: colors.backgroundAlt,
-        default: colors.background,
-      },
-      action: {
-        disabled: colors.textDisabled,
-        disabledBackground: colors.disabled,
-      },
-    },
-    typography: {
-      fontFamily: "'Kanit', sans-serif",
-    },
-    shape: {
-      borderRadius: 18,
-    },
-  }
-}
+import { darkTheme, lightTheme } from './theme'
 
 const StargateWidget = ({ theme }: { theme: PancakeTheme }) => {
-  const widgetTheme = useMemo(() => JSON.stringify(getWidgetTheme(theme)), [theme])
+  const widgetTheme = useMemo(() => JSON.stringify(theme.isDark ? darkTheme : lightTheme), [theme.isDark])
 
   return (
     <Box width="100%">
