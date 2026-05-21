@@ -104,6 +104,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       )
       .replace(/^0x/, '')
 
+    const queryParams = new URLSearchParams({
+      apikey: apiKey,
+      chainid: String(parsed.data.chainId),
+      module: 'contract',
+      action: 'verifysourcecode',
+    })
+
     const params = new URLSearchParams({
       apikey: apiKey,
       chainid: String(parsed.data.chainId),
@@ -120,7 +127,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       licenseType: '3',
     })
 
-    const response = await fetch(ETHERSCAN_V2_API_ENDPOINT, {
+    const response = await fetch(`${ETHERSCAN_V2_API_ENDPOINT}?${queryParams.toString()}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
