@@ -71,11 +71,14 @@ const SelectMenu = styled.div`
   left: 0;
   right: 0;
   z-index: 20;
+  max-height: min(360px, 55vh);
+  overflow-y: auto;
   border: 1px solid ${({ theme }) => theme.colors.cardBorder};
   border-radius: 16px;
   background-color: ${({ theme }) => theme.card.background};
   padding: 6px;
   box-shadow: ${({ theme }) => theme.shadows.level1};
+  scrollbar-width: thin;
 `
 
 const SelectOption = styled.button<{ selected?: boolean }>`
