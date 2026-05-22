@@ -10,6 +10,14 @@ export const CHAIN_QUERY_NAME = {
   [ChainId.BSC_TESTNET]: 'polygonMumbai',
   42161: 'arbitrum',
   10: 'optimism',
+  8453: 'base',
+  25: 'cronos',
+  534352: 'scroll',
+  43114: 'avalanche',
+  999: 'hyperliquid',
+  59144: 'linea',
+  1329: 'sei',
+  146: 'sonic',
 } satisfies Record<number, string>
 
 const CHAIN_QUERY_NAME_TO_ID = invert(CHAIN_QUERY_NAME)
