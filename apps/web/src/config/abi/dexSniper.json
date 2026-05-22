@@ -1,5 +1,61 @@
 [
   {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "targetToken", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "router", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "factory", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "buyToken", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "buyAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "bool", "name": "buyWithNative", "type": "bool" }
+    ],
+    "name": "BotCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "spentAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "acquiredAmount", "type": "uint256" }
+    ],
+    "name": "BotBought",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "soldAmount", "type": "uint256" }
+    ],
+    "name": "BotSold",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{ "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" }],
+    "name": "BotPaused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [{ "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" }],
+    "name": "BotResumed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "token", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "BotWithdrawn",
+    "type": "event"
+  },
+  {
     "inputs": [
       { "internalType": "address", "name": "feeToken_", "type": "address" },
       { "internalType": "address", "name": "feeReceiver_", "type": "address" },

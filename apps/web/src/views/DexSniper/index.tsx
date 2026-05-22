@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { BigNumber } from '@ethersproject/bignumber'
+import type { Contract } from '@ethersproject/contracts'
 import { MaxUint256 } from '@ethersproject/constants'
 import { formatUnits, parseUnits } from '@ethersproject/units'
 import { useTranslation } from '@pancakeswap/localization'
@@ -54,6 +55,16 @@ type BotInfo = {
   soldAt: BigNumber
 }
 
+type BotHistoryEntry = {
+  type: string
+  label: string
+  txHash: string
+  blockNumber: number
+  logIndex: number
+  timestamp?: number
+  amount?: string
+}
+
 const BOT_FEE = parseUnits('1', 18)
 const NATIVE_BUY_TOKEN = 'native'
 const POLYGON_CHAIN_ID = 137
@@ -73,6 +84,15 @@ const statusLabel = (status: number) => {
   if (status === 4) return 'Sold'
   return 'Unknown'
 }
+
+const getHistoryFromBlock = () => Number(process.env.NEXT_PUBLIC_DEX_SNIPER_HISTORY_FROM_BLOCK ?? 0)
+
+const formatHistoryDate = (timestamp?: number) => {
+  if (!timestamp) return '-'
+  return new Date(timestamp * 1000).toLocaleString()
+}
+
+const getExplorerTxUrl = (txHash: string) => `https://polygonscan.com/tx/${txHash}`
 
 const DexSniperTabs: React.FC<{ activeView: DexSniperView }> = ({ activeView }) => {
   const { t } = useTranslation()
@@ -100,14 +120,72 @@ const DexSniperTabs: React.FC<{ activeView: DexSniperView }> = ({ activeView }) 
 
 const BotRow: React.FC<{
   bot: BotInfo
+  dexSniperContract: Contract
   actionBotId: string
   onPause: (bot: BotInfo) => void
   onResume: (bot: BotInfo) => void
-}> = ({ bot, actionBotId, onPause, onResume }) => {
+}> = ({ bot, dexSniperContract, actionBotId, onPause, onResume }) => {
   const { t } = useTranslation()
   const buyDecimals = bot.buyWithNative ? 18 : bot.buyToken.toLowerCase() === bscTokens.usdt.address.toLowerCase() ? 6 : 18
   const buySymbol = bot.buyWithNative ? 'POL' : bot.buyToken.toLowerCase() === bscTokens.usdt.address.toLowerCase() ? 'USDT' : 'TOKEN'
   const isActionLoading = actionBotId === bot.id.toString()
+  const { data: history, isLoading: isHistoryLoading } = useSWR(
+    dexSniperContract ? ['dexSniperBotHistory', dexSniperContract.address, bot.id.toString()] : null,
+    async () => {
+      const fromBlock = getHistoryFromBlock()
+      const filters = [
+        { type: 'created', label: t('Created'), filter: dexSniperContract.filters.BotCreated(bot.id) },
+        { type: 'bought', label: t('Bought'), filter: dexSniperContract.filters.BotBought(bot.id) },
+        { type: 'sold', label: t('Sold'), filter: dexSniperContract.filters.BotSold(bot.id) },
+        { type: 'paused', label: t('Paused'), filter: dexSniperContract.filters.BotPaused(bot.id) },
+        { type: 'resumed', label: t('Resumed'), filter: dexSniperContract.filters.BotResumed(bot.id) },
+        { type: 'withdrawn', label: t('Withdrawn'), filter: dexSniperContract.filters.BotWithdrawn(bot.id) },
+      ]
+      const logs = (
+        await Promise.all(
+          filters.map(async ({ type, label, filter }) => {
+            const events = await dexSniperContract.queryFilter(filter, fromBlock)
+            return events.map((event) => {
+              const amount =
+                type === 'bought'
+                  ? `${formatUnits(event.args?.spentAmount ?? 0, buyDecimals)} ${buySymbol} -> ${formatUnits(
+                      event.args?.acquiredAmount ?? 0,
+                      18,
+                    )} token`
+                  : type === 'sold'
+                  ? `${formatUnits(event.args?.soldAmount ?? 0, 18)} token`
+                  : type === 'withdrawn'
+                  ? formatUnits(event.args?.amount ?? 0, 18)
+                  : undefined
+
+              return {
+                type,
+                label,
+                txHash: event.transactionHash,
+                blockNumber: event.blockNumber,
+                logIndex: event.logIndex,
+                amount,
+              }
+            })
+          }),
+        )
+      )
+        .flat()
+        .sort((a, b) => (b.blockNumber === a.blockNumber ? b.logIndex - a.logIndex : b.blockNumber - a.blockNumber))
+
+      const blockNumbers = Array.from(new Set(logs.map((event) => event.blockNumber)))
+      const blocks = await Promise.all(blockNumbers.map((blockNumber) => dexSniperContract.provider.getBlock(blockNumber)))
+      const timestampByBlock = blocks.reduce<Record<number, number>>(
+        (timestamps, block) => ({
+          ...timestamps,
+          [block.number]: block.timestamp,
+        }),
+        {},
+      )
+
+      return logs.map((event) => ({ ...event, timestamp: timestampByBlock[event.blockNumber] })) as BotHistoryEntry[]
+    },
+  )
 
   return (
     <Box p="16px" border="1px solid" borderColor="cardBorder" borderRadius="8px">
@@ -154,6 +232,45 @@ const BotRow: React.FC<{
           {t('Resume')}
         </Button>
       </Flex>
+      <Box mt="16px">
+        <Text bold mb="8px">
+          {t('Bot History')}
+        </Text>
+        {isHistoryLoading ? (
+          <Text color="textSubtle" fontSize="12px">
+            {t('Loading history...')}
+          </Text>
+        ) : history?.length ? (
+          <Flex flexDirection="column" style={{ gap: '8px' }}>
+            {history.map((event) => (
+              <Box key={`${event.txHash}-${event.logIndex}`} p="10px" border="1px solid" borderColor="cardBorder" borderRadius="8px">
+                <Flex justifyContent="space-between" alignItems="center" style={{ gap: '8px' }}>
+                  <Box>
+                    <Text bold fontSize="13px">
+                      {event.label}
+                    </Text>
+                    <Text color="textSubtle" fontSize="12px">
+                      {formatHistoryDate(event.timestamp)}
+                    </Text>
+                    {event.amount ? (
+                      <Text color="textSubtle" fontSize="12px">
+                        {event.amount}
+                      </Text>
+                    ) : null}
+                  </Box>
+                  <Text as="a" href={getExplorerTxUrl(event.txHash)} target="_blank" rel="noreferrer" color="primary" fontSize="12px">
+                    {t('View Tx')}
+                  </Text>
+                </Flex>
+              </Box>
+            ))}
+          </Flex>
+        ) : (
+          <Text color="textSubtle" fontSize="12px">
+            {t('No history for this bot yet.')}
+          </Text>
+        )}
+      </Box>
     </Box>
   )
 }
@@ -422,7 +539,7 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
 
                 <Flex justifyContent="space-between" mb="16px">
                   <Text color="textSubtle">{t('Start Bot Fee')}</Text>
-                  <Text bold>{t('1000 PLAX')}</Text>
+                  <Text bold>{t('1 PLAX')}</Text>
                 </Flex>
 
                 {!account ? (
@@ -440,7 +557,7 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
                 ) : (
                   <Button width="100%" onClick={handleCreateBot} disabled={!canCreate || isCreating}>
                     {isCreating ? <AutoRenewIcon spin color="currentColor" mr="8px" /> : null}
-                    {isWrongNetwork ? t('Switch to Polygon') : t('Pay 1000 PLAX & Start Bot')}
+                    {isWrongNetwork ? t('Switch to Polygon') : t('Pay 1 PLAX & Start Bot')}
                   </Button>
                 )}
               </>
@@ -454,6 +571,7 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
                       <BotRow
                         key={bot.id.toString()}
                         bot={bot}
+                        dexSniperContract={dexSniperContract}
                         actionBotId={actionBotId}
                         onPause={(currentBot) => handleBotAction(currentBot, 'pauseBot')}
                         onResume={(currentBot) => handleBotAction(currentBot, 'resumeBot')}
