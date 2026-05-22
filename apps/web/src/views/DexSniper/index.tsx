@@ -54,7 +54,7 @@ type BotInfo = {
   soldAt: BigNumber
 }
 
-const BOT_FEE = parseUnits('1000', 18)
+const BOT_FEE = parseUnits('1', 18)
 const NATIVE_BUY_TOKEN = 'native'
 const POLYGON_CHAIN_ID = 137
 const DEFAULT_SLIPPAGE = '20'
