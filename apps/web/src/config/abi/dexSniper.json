@@ -1,0 +1,163 @@
+[
+  {
+    "inputs": [
+      { "internalType": "address", "name": "feeToken_", "type": "address" },
+      { "internalType": "address", "name": "feeReceiver_", "type": "address" },
+      { "internalType": "uint256", "name": "feeAmount_", "type": "uint256" },
+      { "internalType": "address", "name": "keeper_", "type": "address" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "router", "type": "address" },
+      { "internalType": "address", "name": "factory", "type": "address" },
+      { "internalType": "address", "name": "targetToken", "type": "address" },
+      { "internalType": "address", "name": "buyToken", "type": "address" },
+      { "internalType": "uint256", "name": "buyAmount", "type": "uint256" },
+      { "internalType": "uint16", "name": "stopLossBps", "type": "uint16" },
+      { "internalType": "uint16", "name": "takeProfitBps", "type": "uint16" },
+      { "internalType": "uint16", "name": "slippageBps", "type": "uint16" },
+      { "internalType": "uint256", "name": "minLiquidityUsd", "type": "uint256" },
+      { "internalType": "bool", "name": "buyWithNative", "type": "bool" }
+    ],
+    "name": "createBot",
+    "outputs": [{ "internalType": "uint256", "name": "botId", "type": "uint256" }],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "botId", "type": "uint256" }],
+    "name": "pauseBot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{ "internalType": "uint256", "name": "botId", "type": "uint256" }],
+    "name": "resumeBot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "botId", "type": "uint256" },
+      { "internalType": "address[]", "name": "path", "type": "address[]" },
+      { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
+      { "internalType": "uint256", "name": "deadline", "type": "uint256" }
+    ],
+    "name": "executeBuy",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "botId", "type": "uint256" },
+      { "internalType": "address[]", "name": "path", "type": "address[]" },
+      { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
+      { "internalType": "uint256", "name": "deadline", "type": "uint256" },
+      { "internalType": "bool", "name": "sellToNative", "type": "bool" }
+    ],
+    "name": "executeSell",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "botId", "type": "uint256" },
+      { "internalType": "address[]", "name": "path", "type": "address[]" },
+      { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
+      { "internalType": "uint256", "name": "deadline", "type": "uint256" },
+      { "internalType": "bool", "name": "sellToNative", "type": "bool" }
+    ],
+    "name": "emergencySell",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "botId", "type": "uint256" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "withdrawNative",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "botId", "type": "uint256" },
+      { "internalType": "address", "name": "token", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "withdrawToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "user", "type": "address" },
+      { "internalType": "uint256", "name": "offset", "type": "uint256" },
+      { "internalType": "uint256", "name": "limit", "type": "uint256" }
+    ],
+    "name": "getBotsByOwner",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "address", "name": "owner", "type": "address" },
+          { "internalType": "address", "name": "router", "type": "address" },
+          { "internalType": "address", "name": "factory", "type": "address" },
+          { "internalType": "address", "name": "targetToken", "type": "address" },
+          { "internalType": "address", "name": "buyToken", "type": "address" },
+          { "internalType": "uint256", "name": "buyAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "remainingBuyAmount", "type": "uint256" },
+          { "internalType": "uint256", "name": "acquiredAmount", "type": "uint256" },
+          { "internalType": "address", "name": "proceedsToken", "type": "address" },
+          { "internalType": "uint256", "name": "proceedsAmount", "type": "uint256" },
+          { "internalType": "uint16", "name": "stopLossBps", "type": "uint16" },
+          { "internalType": "uint16", "name": "takeProfitBps", "type": "uint16" },
+          { "internalType": "uint16", "name": "slippageBps", "type": "uint16" },
+          { "internalType": "uint256", "name": "minLiquidityUsd", "type": "uint256" },
+          { "internalType": "uint8", "name": "status", "type": "uint8" },
+          { "internalType": "bool", "name": "buyWithNative", "type": "bool" },
+          { "internalType": "uint256", "name": "createdAt", "type": "uint256" },
+          { "internalType": "uint256", "name": "boughtAt", "type": "uint256" },
+          { "internalType": "uint256", "name": "soldAt", "type": "uint256" }
+        ],
+        "internalType": "struct PlaxDexSniper.BotConfig[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeAmount",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeReceiver",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "keeper",
+    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

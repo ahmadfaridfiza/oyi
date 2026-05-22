@@ -118,6 +118,10 @@ export const getTokenLockerAddress = (chainId?: number) => {
   return getAddress(addresses.tokenLocker, chainId)
 }
 
+export const getDexSniperAddress = (chainId?: number) => {
+  return getAddress(addresses.dexSniper, chainId)
+}
+
 export const getICakeAddress = () => {
   return getAddress(addresses.iCake)
 }
