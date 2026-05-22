@@ -12,6 +12,7 @@
     "test:watch": "LC_ALL=\"en_US.UTF-8\" vitest --watch",
     "test:config": "vitest --run --config vitest-config-test.config.ts",
     "lint": "eslint 'src/**/*.{js,jsx,ts,tsx}'",
+    "dex-sniper:keeper": "ts-node --skip-project --compiler-options \"{\\\"module\\\":\\\"commonjs\\\",\\\"moduleResolution\\\":\\\"node\\\",\\\"resolveJsonModule\\\":true,\\\"esModuleInterop\\\":true,\\\"target\\\":\\\"es2020\\\"}\" scripts/dex-sniper-keeper.ts",
     "lint:style": "npx stylelint '**/*.{ts,tsx}'",
     "format:write": "prettier --write \"**/*.{js,jsx,ts,tsx,json}\"",
     "postinstall": "yarn run typechain",

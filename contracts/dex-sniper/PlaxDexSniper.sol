@@ -422,6 +422,22 @@ contract PlaxDexSniper {
         return results;
     }
 
+    function getBots(uint256 offset, uint256 limit) external view returns (BotConfig[] memory) {
+        if (offset >= botCount || limit == 0) {
+            return new BotConfig[](0);
+        }
+
+        uint256 remaining = botCount - offset;
+        uint256 size = remaining < limit ? remaining : limit;
+        BotConfig[] memory results = new BotConfig[](size);
+
+        for (uint256 i = 0; i < size; i++) {
+            results[i] = bots[botCount - offset - i];
+        }
+
+        return results;
+    }
+
     function getUserBotCount(address user) external view returns (uint256) {
         return userBotIds[user].length;
     }
