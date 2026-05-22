@@ -71,7 +71,7 @@ const SelectMenu = styled.div`
   left: 0;
   right: 0;
   z-index: 20;
-  max-height: min(360px, 55vh);
+  max-height: min(360px, 25vh);
   overflow-y: auto;
   border: 1px solid ${({ theme }) => theme.colors.cardBorder};
   border-radius: 16px;
