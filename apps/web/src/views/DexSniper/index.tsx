@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { BigNumber } from '@ethersproject/bignumber'
+import { Contract as EthersContract } from '@ethersproject/contracts'
 import type { Contract } from '@ethersproject/contracts'
 import { MaxUint256 } from '@ethersproject/constants'
 import { formatUnits, parseUnits } from '@ethersproject/units'
@@ -31,6 +32,7 @@ import { useAccount } from 'wagmi'
 import Page from 'views/Page'
 
 type DexSniperView = 'create' | 'my-bots'
+type BotFilter = 'active' | 'inactive'
 
 type BotInfo = {
   id: BigNumber
@@ -70,12 +72,19 @@ type WithdrawTokenPayload = {
   amount: BigNumber
 }
 
+type TokenMetadata = {
+  name: string
+  symbol: string
+  decimals: number
+}
+
 const BOT_FEE = parseUnits('1', 18)
 const NATIVE_BUY_TOKEN = 'native'
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const POLYGON_CHAIN_ID = 137
 const DEFAULT_SLIPPAGE = '20'
 const DEFAULT_MIN_LIQUIDITY = '100'
+const ERC20_METADATA_ABI = ['function name() view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)']
 
 const toBps = (value: string) => {
   const parsed = Number(value)
@@ -83,7 +92,12 @@ const toBps = (value: string) => {
   return Math.round(parsed * 100)
 }
 
-const statusLabel = (status: number) => {
+const isInactiveBot = (bot: BotInfo) =>
+  bot.status === 2 && bot.remainingBuyAmount.eq(0) && bot.acquiredAmount.eq(0) && bot.proceedsAmount.eq(0)
+
+const statusLabel = (bot: BotInfo) => {
+  if (isInactiveBot(bot)) return 'Inactive'
+  const { status } = bot
   if (status === 1) return 'Active'
   if (status === 2) return 'Paused'
   if (status === 3) return 'Bought'
@@ -99,6 +113,21 @@ const formatHistoryDate = (timestamp?: number) => {
 }
 
 const getExplorerTxUrl = (txHash: string) => `https://polygonscan.com/tx/${txHash}`
+
+const getWithdrawTokenLabel = (
+  token: string,
+  buyToken: string,
+  buySymbol: string,
+  targetToken: string,
+  targetSymbol: string,
+  proceedsToken: string,
+) => {
+  const normalizedToken = token.toLowerCase()
+  if (normalizedToken === targetToken.toLowerCase()) return targetSymbol
+  if (normalizedToken === buyToken.toLowerCase()) return buySymbol
+  if (proceedsToken !== ZERO_ADDRESS && normalizedToken === proceedsToken.toLowerCase()) return buySymbol
+  return 'TOKEN'
+}
 
 const DexSniperTabs: React.FC<{ activeView: DexSniperView }> = ({ activeView }) => {
   const { t } = useTranslation()
@@ -132,11 +161,34 @@ const BotRow: React.FC<{
   onResume: (bot: BotInfo) => void
   onWithdrawNative: (bot: BotInfo, amount: BigNumber) => void
   onWithdrawToken: (bot: BotInfo, payload: WithdrawTokenPayload) => void
-}> = ({ bot, dexSniperContract, actionBotId, onPause, onResume, onWithdrawNative, onWithdrawToken }) => {
+  isExpanded: boolean
+  onToggle: (botId: string) => void
+}> = ({ bot, dexSniperContract, actionBotId, onPause, onResume, onWithdrawNative, onWithdrawToken, isExpanded, onToggle }) => {
   const { t } = useTranslation()
   const buyDecimals = bot.buyWithNative ? 18 : bot.buyToken.toLowerCase() === bscTokens.usdt.address.toLowerCase() ? 6 : 18
   const buySymbol = bot.buyWithNative ? 'POL' : bot.buyToken.toLowerCase() === bscTokens.usdt.address.toLowerCase() ? 'USDT' : 'TOKEN'
   const isActionLoading = actionBotId === bot.id.toString()
+  const { data: targetMetadata } = useSWR(
+    dexSniperContract ? ['dexSniperTargetMetadata', dexSniperContract.address, bot.targetToken] : null,
+    async () => {
+      const tokenContract = new EthersContract(bot.targetToken, ERC20_METADATA_ABI, dexSniperContract.provider)
+      const [name, symbol, decimals] = await Promise.all([
+        tokenContract.name().catch(() => ''),
+        tokenContract.symbol().catch(() => 'TOKEN'),
+        tokenContract.decimals().catch(() => 18),
+      ])
+
+      return {
+        name,
+        symbol,
+        decimals: Number(decimals),
+      } as TokenMetadata
+    },
+  )
+  const targetName = targetMetadata?.name || t('Unknown Token')
+  const targetSymbol = targetMetadata?.symbol || t('Token')
+  const targetDecimals = targetMetadata?.decimals ?? 18
+  const isInactive = isInactiveBot(bot)
   const canWithdraw = bot.status === 2 || bot.status === 4
   const nativeWithdrawAmount = (bot.buyWithNative ? bot.remainingBuyAmount : BigNumber.from(0)).add(
     bot.proceedsToken === ZERO_ADDRESS ? bot.proceedsAmount : BigNumber.from(0),
@@ -154,21 +206,21 @@ const BotRow: React.FC<{
       ? {
           token: bot.targetToken,
           amount: bot.acquiredAmount,
-          label: t('Target Token'),
-          decimals: 18,
+          label: targetSymbol,
+          decimals: targetDecimals,
         }
       : null,
     bot.proceedsToken !== ZERO_ADDRESS && bot.proceedsAmount.gt(0)
       ? {
           token: bot.proceedsToken,
           amount: bot.proceedsAmount,
-          label: t('Proceeds Token'),
-          decimals: 18,
+          label: getWithdrawTokenLabel(bot.proceedsToken, bot.buyToken, buySymbol, bot.targetToken, targetSymbol, bot.proceedsToken),
+          decimals: bot.proceedsToken.toLowerCase() === bot.targetToken.toLowerCase() ? targetDecimals : buyDecimals,
         }
       : null,
   ].filter(Boolean) as Array<WithdrawTokenPayload & { label: string; decimals: number }>
   const { data: history, isLoading: isHistoryLoading } = useSWR(
-    dexSniperContract
+    dexSniperContract && isExpanded
       ? [
           'dexSniperBotHistory',
           dexSniperContract.address,
@@ -180,6 +232,8 @@ const BotRow: React.FC<{
           bot.createdAt.toString(),
           bot.boughtAt.toString(),
           bot.soldAt.toString(),
+          targetSymbol,
+          targetDecimals,
         ]
       : null,
     async () => {
@@ -209,12 +263,22 @@ const BotRow: React.FC<{
                 type === 'bought'
                   ? `${formatUnits(event.args?.spentAmount ?? 0, buyDecimals)} ${buySymbol} -> ${formatUnits(
                       event.args?.acquiredAmount ?? 0,
-                      18,
-                    )} token`
+                      targetDecimals,
+                    )} ${targetSymbol}`
                   : type === 'sold'
-                  ? `${formatUnits(event.args?.soldAmount ?? 0, 18)} token`
+                  ? `${formatUnits(event.args?.soldAmount ?? 0, targetDecimals)} ${targetSymbol}`
                   : type === 'withdrawn'
-                  ? formatUnits(event.args?.amount ?? 0, 18)
+                  ? `${formatUnits(
+                      event.args?.amount ?? 0,
+                      event.args?.token?.toLowerCase() === bot.targetToken.toLowerCase() ? targetDecimals : buyDecimals,
+                    )} ${getWithdrawTokenLabel(
+                      event.args?.token ?? ZERO_ADDRESS,
+                      bot.buyToken,
+                      buySymbol,
+                      bot.targetToken,
+                      targetSymbol,
+                      bot.proceedsToken,
+                    )}`
                   : undefined
 
               return {
@@ -258,7 +322,7 @@ const BotRow: React.FC<{
 
       if (!hasEventType('bought') && bot.boughtAt.gt(0)) {
         const spentAmount = bot.buyAmount.sub(bot.remainingBuyAmount)
-        const acquiredText = bot.acquiredAmount.gt(0) ? ` -> ${formatUnits(bot.acquiredAmount, 18)} token` : ''
+        const acquiredText = bot.acquiredAmount.gt(0) ? ` -> ${formatUnits(bot.acquiredAmount, targetDecimals)} ${targetSymbol}` : ''
 
         fallbackHistory.push({
           type: 'bought',
@@ -292,50 +356,66 @@ const BotRow: React.FC<{
 
   return (
     <Box p="16px" border="1px solid" borderColor="cardBorder" borderRadius="8px">
-      <Flex justifyContent="space-between" alignItems="flex-start" mb="12px" style={{ gap: '12px' }}>
+      <Flex justifyContent="space-between" alignItems="flex-start" mb={isExpanded ? '12px' : '0'} style={{ gap: '12px' }}>
         <Box>
           <Text bold>{t('Bot #%id%', { id: bot.id.toString() })}</Text>
+          <Text fontSize="13px">
+            {targetSymbol} - {targetName} ({targetDecimals} {t('decimals')})
+          </Text>
           <Text color="textSubtle" fontSize="12px" ellipsis maxWidth="280px">
             {bot.targetToken}
           </Text>
         </Box>
-        <Text color={bot.status === 1 || bot.status === 3 ? 'success' : 'textSubtle'} bold>
-          {statusLabel(bot.status)}
-        </Text>
+        <Flex alignItems="center" style={{ gap: '8px', flexShrink: 0 }}>
+          <Text color={bot.status === 1 || bot.status === 3 ? 'success' : 'textSubtle'} bold>
+            {statusLabel(bot)}
+          </Text>
+          <Button scale="sm" variant="secondary" onClick={() => onToggle(bot.id.toString())}>
+            {isExpanded ? t('Hide') : t('Details')}
+          </Button>
+        </Flex>
       </Flex>
-      <Flex flexDirection={['column', null, 'row']} style={{ gap: '12px' }}>
-        <Box width="100%">
-          <Text color="textSubtle" fontSize="12px">
-            {t('Buy Amount')}
-          </Text>
-          <Text>
-            {formatUnits(bot.buyAmount, buyDecimals)} {buySymbol}
-          </Text>
-        </Box>
-        <Box width="100%">
-          <Text color="textSubtle" fontSize="12px">
-            {t('Take Profit')}
-          </Text>
-          <Text>{bot.takeProfitBps / 100}%</Text>
-        </Box>
-        <Box width="100%">
-          <Text color="textSubtle" fontSize="12px">
-            {t('Stop Loss')}
-          </Text>
-          <Text>{bot.stopLossBps / 100}%</Text>
-        </Box>
-      </Flex>
-      <Flex mt="16px" style={{ gap: '8px', flexWrap: 'wrap' }}>
-        <Button scale="sm" disabled={bot.status !== 1 && bot.status !== 3} onClick={() => onPause(bot)}>
-          {isActionLoading ? <AutoRenewIcon spin color="currentColor" mr="6px" /> : null}
-          {t('Pause')}
-        </Button>
-        <Button scale="sm" variant="secondary" disabled={bot.status !== 2} onClick={() => onResume(bot)}>
-          {isActionLoading ? <AutoRenewIcon spin color="currentColor" mr="6px" /> : null}
-          {t('Resume')}
-        </Button>
-      </Flex>
-      {canWithdraw ? (
+
+      {isExpanded ? (
+        <>
+          <Flex flexDirection={['column', null, 'row']} style={{ gap: '12px' }}>
+            <Box width="100%">
+              <Text color="textSubtle" fontSize="12px">
+                {t('Buy Amount')}
+              </Text>
+              <Text>
+                {formatUnits(bot.buyAmount, buyDecimals)} {buySymbol}
+              </Text>
+            </Box>
+            <Box width="100%">
+              <Text color="textSubtle" fontSize="12px">
+                {t('Take Profit')}
+              </Text>
+              <Text>{bot.takeProfitBps / 100}%</Text>
+            </Box>
+            <Box width="100%">
+              <Text color="textSubtle" fontSize="12px">
+                {t('Stop Loss')}
+              </Text>
+              <Text>{bot.stopLossBps / 100}%</Text>
+            </Box>
+          </Flex>
+          <Flex mt="16px" style={{ gap: '8px', flexWrap: 'wrap' }}>
+            <Button scale="sm" disabled={isInactive || (bot.status !== 1 && bot.status !== 3)} onClick={() => onPause(bot)}>
+              {isActionLoading ? <AutoRenewIcon spin color="currentColor" mr="6px" /> : null}
+              {isInactive ? t('Inactive') : t('Pause')}
+            </Button>
+            {!isInactive ? (
+              <Button scale="sm" variant="secondary" disabled={bot.status !== 2} onClick={() => onResume(bot)}>
+                {isActionLoading ? <AutoRenewIcon spin color="currentColor" mr="6px" /> : null}
+                {t('Resume')}
+              </Button>
+            ) : null}
+          </Flex>
+        </>
+      ) : null}
+
+      {isExpanded && canWithdraw ? (
         <Box mt="16px">
           <Text bold mb="8px">
             {t('Withdraw')}
@@ -375,53 +455,56 @@ const BotRow: React.FC<{
           </Flex>
         </Box>
       ) : null}
-      <Box mt="16px">
-        <Text bold mb="8px">
-          {t('Bot History')}
-        </Text>
-        {isHistoryLoading ? (
-          <Text color="textSubtle" fontSize="12px">
-            {t('Loading history...')}
+
+      {isExpanded ? (
+        <Box mt="16px">
+          <Text bold mb="8px">
+            {t('Bot History')}
           </Text>
-        ) : history?.length ? (
-          <Flex flexDirection="column" style={{ gap: '8px' }}>
-            {history.map((event) => (
-              <Box
-                key={`${event.txHash ?? event.type}-${event.timestamp ?? event.blockNumber}-${event.logIndex}`}
-                p="10px"
-                border="1px solid"
-                borderColor="cardBorder"
-                borderRadius="8px"
-              >
-                <Flex justifyContent="space-between" alignItems="center" style={{ gap: '8px' }}>
-                  <Box>
-                    <Text bold fontSize="13px">
-                      {event.label}
-                    </Text>
-                    <Text color="textSubtle" fontSize="12px">
-                      {formatHistoryDate(event.timestamp)}
-                    </Text>
-                    {event.amount ? (
+          {isHistoryLoading ? (
+            <Text color="textSubtle" fontSize="12px">
+              {t('Loading history...')}
+            </Text>
+          ) : history?.length ? (
+            <Flex flexDirection="column" style={{ gap: '8px' }}>
+              {history.map((event) => (
+                <Box
+                  key={`${event.txHash ?? event.type}-${event.timestamp ?? event.blockNumber}-${event.logIndex}`}
+                  p="10px"
+                  border="1px solid"
+                  borderColor="cardBorder"
+                  borderRadius="8px"
+                >
+                  <Flex justifyContent="space-between" alignItems="center" style={{ gap: '8px' }}>
+                    <Box>
+                      <Text bold fontSize="13px">
+                        {event.label}
+                      </Text>
                       <Text color="textSubtle" fontSize="12px">
-                        {event.amount}
+                        {formatHistoryDate(event.timestamp)}
+                      </Text>
+                      {event.amount ? (
+                        <Text color="textSubtle" fontSize="12px">
+                          {event.amount}
+                        </Text>
+                      ) : null}
+                    </Box>
+                    {event.txHash ? (
+                      <Text as="a" href={getExplorerTxUrl(event.txHash)} target="_blank" rel="noreferrer" color="primary" fontSize="12px">
+                        {t('View Tx')}
                       </Text>
                     ) : null}
-                  </Box>
-                  {event.txHash ? (
-                    <Text as="a" href={getExplorerTxUrl(event.txHash)} target="_blank" rel="noreferrer" color="primary" fontSize="12px">
-                      {t('View Tx')}
-                    </Text>
-                  ) : null}
-                </Flex>
-              </Box>
-            ))}
-          </Flex>
-        ) : (
-          <Text color="textSubtle" fontSize="12px">
-            {t('No history for this bot yet.')}
-          </Text>
-        )}
-      </Box>
+                  </Flex>
+                </Box>
+              ))}
+            </Flex>
+          ) : (
+            <Text color="textSubtle" fontSize="12px">
+              {t('No history for this bot yet.')}
+            </Text>
+          )}
+        </Box>
+      ) : null}
     </Box>
   )
 }
@@ -454,6 +537,8 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
   const [isApprovingBuyToken, setIsApprovingBuyToken] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [actionBotId, setActionBotId] = useState('')
+  const [botFilter, setBotFilter] = useState<BotFilter>('active')
+  const [expandedBotId, setExpandedBotId] = useState('')
 
   const buyWithNative = buyTokenMode === NATIVE_BUY_TOKEN
   const buyTokenContract = buyWithNative ? null : usdtContract
@@ -481,6 +566,9 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
     () => dexSniperContract.getBotsByOwner(account, 0, 50) as Promise<BotInfo[]>,
     { refreshInterval: 10000 },
   )
+  const activeBots = useMemo(() => (bots ?? []).filter((bot) => !isInactiveBot(bot)), [bots])
+  const inactiveBots = useMemo(() => (bots ?? []).filter((bot) => isInactiveBot(bot)), [bots])
+  const filteredBots = botFilter === 'active' ? activeBots : inactiveBots
 
   const isApprovedFee = feeAllowance ? BigNumber.from(feeAllowance).gte(BOT_FEE) : false
   const isApprovedBuyToken = buyWithNative || (buyTokenAllowance && parsedBuyAmount ? BigNumber.from(buyTokenAllowance).gte(parsedBuyAmount) : false)
@@ -634,6 +722,10 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
     [callWithGasPrice, dexSniperContract, refreshBots, t, toastError, toastSuccess],
   )
 
+  const handleToggleBot = useCallback((botId: string) => {
+    setExpandedBotId((currentBotId) => (currentBotId === botId ? '' : botId))
+  }, [])
+
   return (
     <Page>
       <Box maxWidth="760px" mx="auto" width="100%">
@@ -754,20 +846,46 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
                 {!account ? (
                   <ConnectWalletButton width="100%" />
                 ) : bots?.length ? (
-                  <Flex flexDirection="column" style={{ gap: '12px' }}>
-                    {bots.map((bot) => (
-                      <BotRow
-                        key={bot.id.toString()}
-                        bot={bot}
-                        dexSniperContract={dexSniperContract}
-                        actionBotId={actionBotId}
-                        onPause={(currentBot) => handleBotAction(currentBot, 'pauseBot')}
-                        onResume={(currentBot) => handleBotAction(currentBot, 'resumeBot')}
-                        onWithdrawNative={handleWithdrawNative}
-                        onWithdrawToken={handleWithdrawToken}
-                      />
-                    ))}
-                  </Flex>
+                  <>
+                    <Flex mb="16px" style={{ gap: '8px', flexWrap: 'wrap' }}>
+                      <Button
+                        scale="sm"
+                        variant={botFilter === 'active' ? 'primary' : 'secondary'}
+                        onClick={() => setBotFilter('active')}
+                      >
+                        {t('Active')} ({activeBots.length})
+                      </Button>
+                      <Button
+                        scale="sm"
+                        variant={botFilter === 'inactive' ? 'primary' : 'secondary'}
+                        onClick={() => setBotFilter('inactive')}
+                      >
+                        {t('Inactive')} ({inactiveBots.length})
+                      </Button>
+                    </Flex>
+                    {filteredBots.length ? (
+                      <Flex flexDirection="column" style={{ gap: '12px' }}>
+                        {filteredBots.map((bot) => (
+                          <BotRow
+                            key={bot.id.toString()}
+                            bot={bot}
+                            dexSniperContract={dexSniperContract}
+                            actionBotId={actionBotId}
+                            onPause={(currentBot) => handleBotAction(currentBot, 'pauseBot')}
+                            onResume={(currentBot) => handleBotAction(currentBot, 'resumeBot')}
+                            onWithdrawNative={handleWithdrawNative}
+                            onWithdrawToken={handleWithdrawToken}
+                            isExpanded={expandedBotId === bot.id.toString()}
+                            onToggle={handleToggleBot}
+                          />
+                        ))}
+                      </Flex>
+                    ) : (
+                      <Text color="textSubtle">
+                        {botFilter === 'active' ? t('No active bots found.') : t('No inactive bots found.')}
+                      </Text>
+                    )}
+                  </>
                 ) : (
                   <Text color="textSubtle">{t('No bots found.')}</Text>
                 )}
