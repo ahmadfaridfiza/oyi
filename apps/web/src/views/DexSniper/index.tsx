@@ -65,8 +65,14 @@ type BotHistoryEntry = {
   amount?: string
 }
 
+type WithdrawTokenPayload = {
+  token: string
+  amount: BigNumber
+}
+
 const BOT_FEE = parseUnits('1', 18)
 const NATIVE_BUY_TOKEN = 'native'
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const POLYGON_CHAIN_ID = 137
 const DEFAULT_SLIPPAGE = '20'
 const DEFAULT_MIN_LIQUIDITY = '100'
@@ -124,11 +130,43 @@ const BotRow: React.FC<{
   actionBotId: string
   onPause: (bot: BotInfo) => void
   onResume: (bot: BotInfo) => void
-}> = ({ bot, dexSniperContract, actionBotId, onPause, onResume }) => {
+  onWithdrawNative: (bot: BotInfo, amount: BigNumber) => void
+  onWithdrawToken: (bot: BotInfo, payload: WithdrawTokenPayload) => void
+}> = ({ bot, dexSniperContract, actionBotId, onPause, onResume, onWithdrawNative, onWithdrawToken }) => {
   const { t } = useTranslation()
   const buyDecimals = bot.buyWithNative ? 18 : bot.buyToken.toLowerCase() === bscTokens.usdt.address.toLowerCase() ? 6 : 18
   const buySymbol = bot.buyWithNative ? 'POL' : bot.buyToken.toLowerCase() === bscTokens.usdt.address.toLowerCase() ? 'USDT' : 'TOKEN'
   const isActionLoading = actionBotId === bot.id.toString()
+  const canWithdraw = bot.status === 2 || bot.status === 4
+  const nativeWithdrawAmount = (bot.buyWithNative ? bot.remainingBuyAmount : BigNumber.from(0)).add(
+    bot.proceedsToken === ZERO_ADDRESS ? bot.proceedsAmount : BigNumber.from(0),
+  )
+  const tokenWithdraws = [
+    !bot.buyWithNative && bot.remainingBuyAmount.gt(0)
+      ? {
+          token: bot.buyToken,
+          amount: bot.remainingBuyAmount,
+          label: buySymbol,
+          decimals: buyDecimals,
+        }
+      : null,
+    bot.acquiredAmount.gt(0)
+      ? {
+          token: bot.targetToken,
+          amount: bot.acquiredAmount,
+          label: t('Target Token'),
+          decimals: 18,
+        }
+      : null,
+    bot.proceedsToken !== ZERO_ADDRESS && bot.proceedsAmount.gt(0)
+      ? {
+          token: bot.proceedsToken,
+          amount: bot.proceedsAmount,
+          label: t('Proceeds Token'),
+          decimals: 18,
+        }
+      : null,
+  ].filter(Boolean) as Array<WithdrawTokenPayload & { label: string; decimals: number }>
   const { data: history, isLoading: isHistoryLoading } = useSWR(
     dexSniperContract
       ? [
@@ -297,6 +335,46 @@ const BotRow: React.FC<{
           {t('Resume')}
         </Button>
       </Flex>
+      {canWithdraw ? (
+        <Box mt="16px">
+          <Text bold mb="8px">
+            {t('Withdraw')}
+          </Text>
+          <Flex style={{ gap: '8px', flexWrap: 'wrap' }}>
+            {nativeWithdrawAmount.gt(0) ? (
+              <Button
+                scale="sm"
+                variant="secondary"
+                disabled={isActionLoading}
+                onClick={() => onWithdrawNative(bot, nativeWithdrawAmount)}
+              >
+                {isActionLoading ? <AutoRenewIcon spin color="currentColor" mr="6px" /> : null}
+                {t('Withdraw %amount% POL', { amount: formatUnits(nativeWithdrawAmount, 18) })}
+              </Button>
+            ) : null}
+            {tokenWithdraws.map((withdraw) => (
+              <Button
+                key={`${withdraw.token}-${withdraw.amount.toString()}`}
+                scale="sm"
+                variant="secondary"
+                disabled={isActionLoading}
+                onClick={() => onWithdrawToken(bot, { token: withdraw.token, amount: withdraw.amount })}
+              >
+                {isActionLoading ? <AutoRenewIcon spin color="currentColor" mr="6px" /> : null}
+                {t('Withdraw %amount% %symbol%', {
+                  amount: formatUnits(withdraw.amount, withdraw.decimals),
+                  symbol: withdraw.label,
+                })}
+              </Button>
+            ))}
+            {!nativeWithdrawAmount.gt(0) && tokenWithdraws.length === 0 ? (
+              <Text color="textSubtle" fontSize="12px">
+                {t('No withdrawable balance.')}
+              </Text>
+            ) : null}
+          </Flex>
+        </Box>
+      ) : null}
       <Box mt="16px">
         <Text bold mb="8px">
           {t('Bot History')}
@@ -520,6 +598,42 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
     [callWithGasPrice, dexSniperContract, refreshBots, t, toastError, toastSuccess],
   )
 
+  const handleWithdrawNative = useCallback(
+    async (bot: BotInfo, amount: BigNumber) => {
+      if (!dexSniperContract || amount.lte(0)) return
+      setActionBotId(bot.id.toString())
+      try {
+        const tx = await callWithGasPrice(dexSniperContract, 'withdrawNative', [bot.id, amount])
+        await tx.wait()
+        await refreshBots()
+        toastSuccess(t('Withdraw successful'), <ToastDescriptionWithTx txHash={tx.hash}>{t('Native balance has been withdrawn.')}</ToastDescriptionWithTx>)
+      } catch (error) {
+        toastError(t('Error'), error instanceof Error ? error.message : t('Unable to withdraw native balance.'))
+      } finally {
+        setActionBotId('')
+      }
+    },
+    [callWithGasPrice, dexSniperContract, refreshBots, t, toastError, toastSuccess],
+  )
+
+  const handleWithdrawToken = useCallback(
+    async (bot: BotInfo, payload: WithdrawTokenPayload) => {
+      if (!dexSniperContract || payload.amount.lte(0)) return
+      setActionBotId(bot.id.toString())
+      try {
+        const tx = await callWithGasPrice(dexSniperContract, 'withdrawToken', [bot.id, payload.token, payload.amount])
+        await tx.wait()
+        await refreshBots()
+        toastSuccess(t('Withdraw successful'), <ToastDescriptionWithTx txHash={tx.hash}>{t('Token balance has been withdrawn.')}</ToastDescriptionWithTx>)
+      } catch (error) {
+        toastError(t('Error'), error instanceof Error ? error.message : t('Unable to withdraw token balance.'))
+      } finally {
+        setActionBotId('')
+      }
+    },
+    [callWithGasPrice, dexSniperContract, refreshBots, t, toastError, toastSuccess],
+  )
+
   return (
     <Page>
       <Box maxWidth="760px" mx="auto" width="100%">
@@ -649,6 +763,8 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
                         actionBotId={actionBotId}
                         onPause={(currentBot) => handleBotAction(currentBot, 'pauseBot')}
                         onResume={(currentBot) => handleBotAction(currentBot, 'resumeBot')}
+                        onWithdrawNative={handleWithdrawNative}
+                        onWithdrawToken={handleWithdrawToken}
                       />
                     ))}
                   </Flex>

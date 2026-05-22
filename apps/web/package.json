@@ -74,6 +74,7 @@
     "clsx": "^1.2.1",
     "crypto-js": "^4.1.1",
     "date-fns": "^2.29.3",
+    "dotenv": "^10.0.0",
     "easymde": "^2.16.1",
     "fast-json-stable-stringify": "^2.1.0",
     "graphql": "^16.6.0",

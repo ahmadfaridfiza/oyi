@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { Contract } from '@ethersproject/contracts'
 import { Wallet } from '@ethersproject/wallet'
 import { BigNumber } from '@ethersproject/bignumber'
