@@ -205,6 +205,10 @@ const config: (
           href: '/token-deployer',
         },
         {
+          label: t('Token Listing'),
+          href: '/token-listing',
+        },
+        {
           label: t('Token Locker'),
           href: '/token-locker',
         },

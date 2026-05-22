@@ -21,6 +21,7 @@ import multicall from '../utils/multicall'
 import erc20ABI from '../config/abi/erc20.json'
 import { ERC20_BYTES32_ABI } from '../config/abi/erc20'
 import { FetchStatus } from '../config/constants/types'
+import { useListedTokens } from './useListedTokens'
 
 const mapWithoutUrls = (tokenMap: TokenAddressMap<ChainId>, chainId: number) =>
   Object.keys(tokenMap[chainId] || {}).reduce<{ [address: string]: ERC20Token }>((newMap, address) => {
@@ -40,6 +41,7 @@ export function useAllTokens(): { [address: string]: ERC20Token } {
   const { chainId } = useActiveChainId()
   const tokenMap = useAtomValue(combinedTokenMapFromActiveUrlsAtom)
   const userAddedTokens = useUserAddedTokens()
+  const listedTokens = useListedTokens()
   return useMemo(() => {
     return (
       userAddedTokens
@@ -56,10 +58,10 @@ export function useAllTokens(): { [address: string]: ERC20Token } {
           },
           // must make a copy because reduce modifies the map, and we do not
           // want to make a copy in every iteration
-          mapWithoutUrls(tokenMap, chainId),
+          { ...mapWithoutUrls(tokenMap, chainId), ...listedTokens },
         )
     )
-  }, [userAddedTokens, tokenMap, chainId])
+  }, [userAddedTokens, tokenMap, chainId, listedTokens])
 }
 
 /**
