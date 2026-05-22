@@ -2,7 +2,7 @@ import { Contract } from '@ethersproject/contracts'
 import { Wallet } from '@ethersproject/wallet'
 import { BigNumber } from '@ethersproject/bignumber'
 import { JsonRpcProvider } from '@ethersproject/providers'
-import { formatUnits } from '@ethersproject/units'
+import { formatUnits, parseUnits } from '@ethersproject/units'
 import dexSniperAbi from '../src/config/abi/dexSniper.json'
 
 const FACTORY_ABI = ['function getPair(address tokenA, address tokenB) view returns (address pair)']
@@ -51,6 +51,26 @@ const sleep = (ms: number) =>
 const getPathInputToken = (bot: BotInfo) => (bot.buyWithNative ? requiredEnv('DEX_SNIPER_WRAPPED_NATIVE') : bot.buyToken)
 
 const withSlippage = (amount: BigNumber, slippageBps: number) => amount.mul(Math.max(0, 10000 - slippageBps)).div(10000)
+
+const getGasOverrides = async (provider: JsonRpcProvider) => {
+  const [feeData, latestBlock] = await Promise.all([provider.getFeeData(), provider.getBlock('latest')])
+  const minPriorityFee = parseUnits(process.env.DEX_SNIPER_MIN_PRIORITY_FEE_GWEI ?? '30', 'gwei')
+  const envMaxFee = process.env.DEX_SNIPER_MAX_FEE_GWEI
+    ? parseUnits(process.env.DEX_SNIPER_MAX_FEE_GWEI, 'gwei')
+    : undefined
+  const maxPriorityFeePerGas =
+    feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas.gt(minPriorityFee)
+      ? feeData.maxPriorityFeePerGas
+      : minPriorityFee
+  const baseFee = latestBlock.baseFeePerGas ?? feeData.gasPrice ?? parseUnits('100', 'gwei')
+  const calculatedMaxFee = baseFee.mul(2).add(maxPriorityFeePerGas)
+  const maxFeePerGas = envMaxFee ?? (feeData.maxFeePerGas && feeData.maxFeePerGas.gt(calculatedMaxFee) ? feeData.maxFeePerGas : calculatedMaxFee)
+
+  return {
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+  }
+}
 
 const getPairAddress = async (bot: BotInfo, provider: JsonRpcProvider) => {
   const factory = new Contract(bot.factory, FACTORY_ABI, provider)
@@ -117,7 +137,14 @@ const executeBuyIfReady = async (bot: BotInfo, sniper: Contract, provider: JsonR
     amountOutMin: amountOutMin.toString(),
   })
 
-  const tx = await sniper.executeBuy(bot.id, path, amountOutMin, deadline)
+  const gasOverrides = await getGasOverrides(provider)
+  console.info('[DexSniperKeeper] Buy gas', {
+    botId: bot.id.toString(),
+    maxFeeGwei: formatUnits(gasOverrides.maxFeePerGas, 'gwei'),
+    maxPriorityFeeGwei: formatUnits(gasOverrides.maxPriorityFeePerGas, 'gwei'),
+  })
+
+  const tx = await sniper.executeBuy(bot.id, path, amountOutMin, deadline, gasOverrides)
   console.info('[DexSniperKeeper] Buy tx sent', { botId: bot.id.toString(), txHash: tx.hash })
   await tx.wait()
 }
@@ -155,7 +182,14 @@ const executeSellIfTriggered = async (bot: BotInfo, sniper: Contract, provider: 
     amountOutMin: amountOutMin.toString(),
   })
 
-  const tx = await sniper.executeSell(bot.id, path, amountOutMin, deadline, bot.buyWithNative)
+  const gasOverrides = await getGasOverrides(provider)
+  console.info('[DexSniperKeeper] Sell gas', {
+    botId: bot.id.toString(),
+    maxFeeGwei: formatUnits(gasOverrides.maxFeePerGas, 'gwei'),
+    maxPriorityFeeGwei: formatUnits(gasOverrides.maxPriorityFeePerGas, 'gwei'),
+  })
+
+  const tx = await sniper.executeSell(bot.id, path, amountOutMin, deadline, bot.buyWithNative, gasOverrides)
   console.info('[DexSniperKeeper] Sell tx sent', { botId: bot.id.toString(), txHash: tx.hash })
   await tx.wait()
 }

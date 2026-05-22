@@ -58,7 +58,7 @@ type BotInfo = {
 type BotHistoryEntry = {
   type: string
   label: string
-  txHash: string
+  txHash?: string
   blockNumber: number
   logIndex: number
   timestamp?: number
@@ -130,7 +130,20 @@ const BotRow: React.FC<{
   const buySymbol = bot.buyWithNative ? 'POL' : bot.buyToken.toLowerCase() === bscTokens.usdt.address.toLowerCase() ? 'USDT' : 'TOKEN'
   const isActionLoading = actionBotId === bot.id.toString()
   const { data: history, isLoading: isHistoryLoading } = useSWR(
-    dexSniperContract ? ['dexSniperBotHistory', dexSniperContract.address, bot.id.toString()] : null,
+    dexSniperContract
+      ? [
+          'dexSniperBotHistory',
+          dexSniperContract.address,
+          bot.id.toString(),
+          bot.status,
+          bot.acquiredAmount.toString(),
+          bot.remainingBuyAmount.toString(),
+          bot.proceedsAmount.toString(),
+          bot.createdAt.toString(),
+          bot.boughtAt.toString(),
+          bot.soldAt.toString(),
+        ]
+      : null,
     async () => {
       const fromBlock = getHistoryFromBlock()
       const filters = [
@@ -144,7 +157,15 @@ const BotRow: React.FC<{
       const logs = (
         await Promise.all(
           filters.map(async ({ type, label, filter }) => {
-            const events = await dexSniperContract.queryFilter(filter, fromBlock)
+            const events = await dexSniperContract.queryFilter(filter, fromBlock).catch((error) => {
+              console.info('[DexSniper] Failed to load bot history event', {
+                botId: bot.id.toString(),
+                type,
+                fromBlock,
+                error,
+              })
+              return []
+            })
             return events.map((event) => {
               const amount =
                 type === 'bought'
@@ -183,8 +204,52 @@ const BotRow: React.FC<{
         {},
       )
 
-      return logs.map((event) => ({ ...event, timestamp: timestampByBlock[event.blockNumber] })) as BotHistoryEntry[]
+      const eventHistory = logs.map((event) => ({ ...event, timestamp: timestampByBlock[event.blockNumber] })) as BotHistoryEntry[]
+      const hasEventType = (type: string) => eventHistory.some((event) => event.type === type)
+      const fallbackHistory: BotHistoryEntry[] = []
+
+      if (!hasEventType('created') && bot.createdAt.gt(0)) {
+        fallbackHistory.push({
+          type: 'created',
+          label: t('Created'),
+          blockNumber: 0,
+          logIndex: 0,
+          timestamp: bot.createdAt.toNumber(),
+        })
+      }
+
+      if (!hasEventType('bought') && bot.boughtAt.gt(0)) {
+        const spentAmount = bot.buyAmount.sub(bot.remainingBuyAmount)
+        const acquiredText = bot.acquiredAmount.gt(0) ? ` -> ${formatUnits(bot.acquiredAmount, 18)} token` : ''
+
+        fallbackHistory.push({
+          type: 'bought',
+          label: t('Bought'),
+          blockNumber: 0,
+          logIndex: 1,
+          timestamp: bot.boughtAt.toNumber(),
+          amount: `${formatUnits(spentAmount, buyDecimals)} ${buySymbol}${acquiredText}`,
+        })
+      }
+
+      if (!hasEventType('sold') && bot.soldAt.gt(0)) {
+        fallbackHistory.push({
+          type: 'sold',
+          label: t('Sold'),
+          blockNumber: 0,
+          logIndex: 2,
+          timestamp: bot.soldAt.toNumber(),
+          amount: `${formatUnits(bot.proceedsAmount, buyDecimals)} ${buySymbol}`,
+        })
+      }
+
+      return [...eventHistory, ...fallbackHistory].sort((a, b) => {
+        const timestampDiff = (b.timestamp ?? 0) - (a.timestamp ?? 0)
+        if (timestampDiff !== 0) return timestampDiff
+        return b.logIndex - a.logIndex
+      }) as BotHistoryEntry[]
     },
+    { refreshInterval: 10000 },
   )
 
   return (
@@ -243,7 +308,13 @@ const BotRow: React.FC<{
         ) : history?.length ? (
           <Flex flexDirection="column" style={{ gap: '8px' }}>
             {history.map((event) => (
-              <Box key={`${event.txHash}-${event.logIndex}`} p="10px" border="1px solid" borderColor="cardBorder" borderRadius="8px">
+              <Box
+                key={`${event.txHash ?? event.type}-${event.timestamp ?? event.blockNumber}-${event.logIndex}`}
+                p="10px"
+                border="1px solid"
+                borderColor="cardBorder"
+                borderRadius="8px"
+              >
                 <Flex justifyContent="space-between" alignItems="center" style={{ gap: '8px' }}>
                   <Box>
                     <Text bold fontSize="13px">
@@ -258,9 +329,11 @@ const BotRow: React.FC<{
                       </Text>
                     ) : null}
                   </Box>
-                  <Text as="a" href={getExplorerTxUrl(event.txHash)} target="_blank" rel="noreferrer" color="primary" fontSize="12px">
-                    {t('View Tx')}
-                  </Text>
+                  {event.txHash ? (
+                    <Text as="a" href={getExplorerTxUrl(event.txHash)} target="_blank" rel="noreferrer" color="primary" fontSize="12px">
+                      {t('View Tx')}
+                    </Text>
+                  ) : null}
                 </Flex>
               </Box>
             ))}
@@ -328,6 +401,7 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
   const { data: bots, mutate: refreshBots } = useSWR(
     activeView === 'my-bots' && account && dexSniperContract ? ['dexSniperBots', account] : null,
     () => dexSniperContract.getBotsByOwner(account, 0, 50) as Promise<BotInfo[]>,
+    { refreshInterval: 10000 },
   )
 
   const isApprovedFee = feeAllowance ? BigNumber.from(feeAllowance).gte(BOT_FEE) : false
