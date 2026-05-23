@@ -44,11 +44,39 @@ pm2 logs plax-dex-sniper
 (if update .env use this restart)
 pm2 restart plax-dex-sniper
 
+---for new-pair-sniper---
+pm2 start yarn --name plax-new-pair-sniper -- new-pair-sniper:keeper
+pm2 save
+pm2 startup
+
+pm2 status
+pm2 logs plax-new-pair-sniper
+
+(if update .env use this restart)
+pm2 restart plax-new-pair-sniper
+
+(for delete pm2 use this command)
+
+pm2 stop plax-dex-sniper 
+or
+pm2 stop plax-new-pair-sniper
+
+pm2 delete plax-dex-sniper
+or
+pm2 delete plax-new-pair-sniper
+
 (if update from github use this command)
 cd ~/folder repo
 git pull
+
 (if error when git pull use this command)
 git reset --hard HEAD
+
+(if want to save change and then update)
+git stash
+git pull
+git stash pop
+
 yarn install
 pm2 restart plax-dex-sniper
 

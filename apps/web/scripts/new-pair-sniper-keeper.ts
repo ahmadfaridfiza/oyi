@@ -18,6 +18,7 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const STATUS_ACTIVE = 1
 const STATUS_BOUGHT = 3
 const DEFAULT_LIMIT = 50
+const SCAN_LOOKBACK_BLOCKS = 5
 
 type BotInfo = {
   id: BigNumber
@@ -103,9 +104,8 @@ const fetchBots = async (sniper: Contract) => {
 
 const getNewPairCandidates = async (bot: BotInfo, provider: JsonRpcProvider): Promise<PairCandidate[]> => {
   const latestBlock = await provider.getBlockNumber()
-  const lookbackBlocks = Number(process.env.NEW_PAIR_SNIPER_LOOKBACK_BLOCKS ?? 300)
   const scannerKey = `${bot.id.toString()}-${bot.factory.toLowerCase()}`
-  const lastScannedBlock = lastScannedBlockByBot.get(scannerKey) ?? Math.max(0, latestBlock - lookbackBlocks)
+  const lastScannedBlock = lastScannedBlockByBot.get(scannerKey) ?? Math.max(0, latestBlock - SCAN_LOOKBACK_BLOCKS)
   const fromBlock = Math.min(lastScannedBlock + 1, latestBlock)
   const toBlock = latestBlock
   lastScannedBlockByBot.set(scannerKey, latestBlock)
