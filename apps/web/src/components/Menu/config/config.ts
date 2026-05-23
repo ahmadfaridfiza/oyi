@@ -199,6 +199,7 @@ const config: (
       label: t('Tools'),
       href: '/token-locker',
       icon: HammerIcon,
+      hideSubNav: true,
       items: [
         {
           label: t('Bridge Token'),
@@ -224,7 +225,7 @@ const config: (
           label: t('Token Locker'),
           href: '/token-locker',
         },
-      ]
+      ].map((item) => addMenuItemSupported(item, chainId)),
     },
     {
       label: t('Lottery'),
