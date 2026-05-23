@@ -201,6 +201,10 @@ const config: (
       icon: HammerIcon,
       items: [
         {
+          label: t('Bridge Token'),
+          href: '/bridge',
+        },
+        {
           label: t('Token Deployer'),
           href: '/token-deployer',
         },
@@ -220,7 +224,7 @@ const config: (
           label: t('Token Locker'),
           href: '/token-locker',
         },
-      ].map((item) => addMenuItemSupported(item, chainId)),
+      ]
     },
     {
       label: t('Lottery'),
@@ -275,11 +279,6 @@ const config: (
       icon: MoreIcon,
       hideSubNav: true,
       items: [
-        {
-          label: t('Bridge Token'),
-          href: '/bridge',
-          image: '/images/decorations/3d-coin.png',
-        },
         {
           label: t('IFO'),
           href: '/ifo',
