@@ -19,6 +19,7 @@ const STATUS_ACTIVE = 1
 const STATUS_BOUGHT = 3
 const DEFAULT_LIMIT = 50
 const SCAN_LOOKBACK_BLOCKS = 5
+const SCAN_CONFIRMATION_BLOCKS = 5
 
 type BotInfo = {
   id: BigNumber
@@ -104,15 +105,17 @@ const fetchBots = async (sniper: Contract) => {
 
 const getNewPairCandidates = async (bot: BotInfo, provider: JsonRpcProvider): Promise<PairCandidate[]> => {
   const latestBlock = await provider.getBlockNumber()
+  const safeLatestBlock = Math.max(0, latestBlock - SCAN_CONFIRMATION_BLOCKS)
   const scannerKey = `${bot.id.toString()}-${bot.factory.toLowerCase()}`
-  const lastScannedBlock = lastScannedBlockByBot.get(scannerKey) ?? Math.max(0, latestBlock - SCAN_LOOKBACK_BLOCKS)
-  const fromBlock = Math.min(lastScannedBlock + 1, latestBlock)
-  const toBlock = latestBlock
-  lastScannedBlockByBot.set(scannerKey, latestBlock)
+  const lastScannedBlock = lastScannedBlockByBot.get(scannerKey) ?? Math.max(0, safeLatestBlock - SCAN_LOOKBACK_BLOCKS)
+  const fromBlock = Math.min(lastScannedBlock + 1, safeLatestBlock)
+  const toBlock = safeLatestBlock
 
   const pendingCandidates = pendingCandidatesByBot.get(scannerKey) ?? []
 
   if (fromBlock > toBlock) return pendingCandidates
+
+  lastScannedBlockByBot.set(scannerKey, toBlock)
 
   const logs = await provider.getLogs({
     address: bot.factory,
@@ -124,6 +127,7 @@ const getNewPairCandidates = async (bot: BotInfo, provider: JsonRpcProvider): Pr
   console.info('[NewPairSniperKeeper] Pair scan', {
     botId: bot.id.toString(),
     factory: bot.factory,
+    latestBlock,
     fromBlock,
     toBlock,
     logs: logs.length,
