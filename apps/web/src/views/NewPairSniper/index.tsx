@@ -33,6 +33,7 @@ import Page from 'views/Page'
 
 type NewPairSniperView = 'create' | 'my-bots'
 type BotFilter = 'active' | 'inactive'
+type DexPresetId = 'plaxswap' | 'quickswap' | 'sushiswap' | 'uniswap' | 'custom'
 
 type BotInfo = {
   id: BigNumber
@@ -78,6 +79,37 @@ const POLYGON_CHAIN_ID = 137
 const WRAPPED_POL = '0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270'
 const DEFAULT_SLIPPAGE = '20'
 const DEFAULT_MIN_LIQUIDITY = '100'
+const CUSTOM_DEX_PRESET: DexPresetId = 'custom'
+const DEX_PRESETS: Array<{ id: DexPresetId; label: string; router?: string; factory?: string }> = [
+  {
+    id: 'plaxswap',
+    label: 'Plaxswap',
+    router: '0x09bfaA0E9B73D4741AE3721b6F82409e79695eBF',
+    factory: '0x709e3C6b22993189327a8CFebD572b6cc459fe40',
+  },
+  {
+    id: 'quickswap',
+    label: 'QuickSwap',
+    router: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff',
+    factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32',
+  },
+  {
+    id: 'sushiswap',
+    label: 'SushiSwap',
+    router: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506',
+    factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4',
+  },
+  {
+    id: 'uniswap',
+    label: 'UniSwap',
+    router: '0xedf6066a2b290C185783862C7F4776A2C8077AD1',
+    factory: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
+  },
+  {
+    id: CUSTOM_DEX_PRESET,
+    label: 'Custom DEX',
+  },
+]
 const ERC20_METADATA_ABI = ['function name() view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)']
 
 const toBps = (value: string) => {
@@ -293,6 +325,7 @@ const NewPairSniper: React.FC<{ activeView?: NewPairSniperView }> = ({ activeVie
   const usdtContract = useTokenContract(usdtToken.address)
   const hasAddress = Boolean(sniperAddress)
 
+  const [dexPreset, setDexPreset] = useState<DexPresetId>('plaxswap')
   const [router, setRouter] = useState('')
   const [factory, setFactory] = useState('')
   const [buyTokenMode, setBuyTokenMode] = useState(NATIVE_BUY_TOKEN)
@@ -312,6 +345,10 @@ const NewPairSniper: React.FC<{ activeView?: NewPairSniperView }> = ({ activeVie
   const quoteToken = buyWithNative ? WRAPPED_POL : usdtToken.address
   const buyTokenContract = buyWithNative ? null : usdtContract
   const buyDecimals = buyWithNative ? 18 : usdtToken.decimals
+  const selectedDexPreset = useMemo(() => DEX_PRESETS.find((preset) => preset.id === dexPreset), [dexPreset])
+  const isCustomDex = dexPreset === CUSTOM_DEX_PRESET
+  const routerAddress = selectedDexPreset?.router ?? router
+  const factoryAddress = selectedDexPreset?.factory ?? factory
   const parsedBuyAmount = useMemo(() => {
     try {
       return buyAmount ? parseUnits(buyAmount, buyDecimals) : null
@@ -344,8 +381,8 @@ const NewPairSniper: React.FC<{ activeView?: NewPairSniperView }> = ({ activeVie
     account &&
     hasAddress &&
     !isWrongNetwork &&
-    isAddress(router) &&
-    isAddress(factory) &&
+    isAddress(routerAddress) &&
+    isAddress(factoryAddress) &&
     parsedBuyAmount?.gt(0) &&
     toBps(takeProfit) &&
     toBps(stopLoss) !== null &&
@@ -394,8 +431,8 @@ const NewPairSniper: React.FC<{ activeView?: NewPairSniperView }> = ({ activeVie
         contract,
         'createBot',
         [
-          router,
-          factory,
+          routerAddress,
+          factoryAddress,
           quoteToken,
           buyWithNative ? ZERO_ADDRESS : usdtToken.address,
           parsedBuyAmount,
@@ -419,12 +456,12 @@ const NewPairSniper: React.FC<{ activeView?: NewPairSniperView }> = ({ activeVie
     buyWithNative,
     callWithGasPrice,
     contract,
-    factory,
+    factoryAddress,
     minLiquidity,
     parsedBuyAmount,
     quoteToken,
     refreshBots,
-    router,
+    routerAddress,
     slippage,
     stopLoss,
     takeProfit,
@@ -513,20 +550,49 @@ const NewPairSniper: React.FC<{ activeView?: NewPairSniperView }> = ({ activeVie
 
             {activeView === 'create' ? (
               <>
-                <Flex flexDirection={['column', null, 'row']} style={{ gap: '16px' }} mb="16px">
-                  <Box width="100%">
-                    <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
-                      {t('Router Address')}
-                    </Text>
-                    <Input value={router} onChange={(event) => setRouter(event.target.value)} placeholder="0x..." />
-                  </Box>
-                  <Box width="100%">
-                    <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
-                      {t('Factory Address')}
-                    </Text>
-                    <Input value={factory} onChange={(event) => setFactory(event.target.value)} placeholder="0x..." />
-                  </Box>
-                </Flex>
+                <Box mb="16px">
+                  <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
+                    {t('DEX')}
+                  </Text>
+                  <select
+                    value={dexPreset}
+                    onChange={(event) => setDexPreset(event.target.value as DexPresetId)}
+                    style={{ width: '100%', height: 48 }}
+                  >
+                    {DEX_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.label}
+                      </option>
+                    ))}
+                  </select>
+                  {!isCustomDex && selectedDexPreset ? (
+                    <Flex mt="8px" flexDirection="column" style={{ gap: '4px' }}>
+                      <Text color="textSubtle" fontSize="12px" ellipsis>
+                        {t('Router')}: {selectedDexPreset.router}
+                      </Text>
+                      <Text color="textSubtle" fontSize="12px" ellipsis>
+                        {t('Factory')}: {selectedDexPreset.factory}
+                      </Text>
+                    </Flex>
+                  ) : null}
+                </Box>
+
+                {isCustomDex ? (
+                  <Flex flexDirection={['column', null, 'row']} style={{ gap: '16px' }} mb="16px">
+                    <Box width="100%">
+                      <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
+                        {t('Router Address')}
+                      </Text>
+                      <Input value={router} onChange={(event) => setRouter(event.target.value)} placeholder="0x..." />
+                    </Box>
+                    <Box width="100%">
+                      <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
+                        {t('Factory Address')}
+                      </Text>
+                      <Input value={factory} onChange={(event) => setFactory(event.target.value)} placeholder="0x..." />
+                    </Box>
+                  </Flex>
+                ) : null}
 
                 <Flex flexDirection={['column', null, 'row']} style={{ gap: '16px' }} mb="16px">
                   <Box width="100%">

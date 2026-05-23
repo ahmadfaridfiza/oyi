@@ -47,6 +47,8 @@ pm2 restart plax-dex-sniper
 (if update from github use this command)
 cd ~/folder repo
 git pull
+(if error when git pull use this command)
+git reset --hard HEAD
 yarn install
 pm2 restart plax-dex-sniper
 
