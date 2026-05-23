@@ -95,7 +95,7 @@ const DEX_PRESETS: Array<{ id: DexPresetId; label: string; logoURI?: string; rou
   {
     id: 'quickswap',
     label: 'QuickSwap',
-    logoURI: 'https://cryptologos.cc/logos/quickswap-quick-logo.png',
+    logoURI: 'https://plaxswap.github.io/blockchain/polygon/assets/0xB5C064F955D8e7F38fE0460C556a72987494eE17/logo.png',
     router: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff',
     factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32',
   },
