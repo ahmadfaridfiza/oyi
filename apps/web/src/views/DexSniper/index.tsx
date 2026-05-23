@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import styled from 'styled-components'
 import { BigNumber } from '@ethersproject/bignumber'
 import { Contract as EthersContract } from '@ethersproject/contracts'
 import type { Contract } from '@ethersproject/contracts'
@@ -11,12 +12,14 @@ import {
   Button,
   Card,
   CardBody,
+  ChevronDownIcon,
   Flex,
   Heading,
   Input,
   Message,
   MessageText,
   Text,
+  TokenLogo,
   useToast,
 } from '@pancakeswap/uikit'
 import { bscTokens } from '@pancakeswap/tokens'
@@ -34,6 +37,7 @@ import Page from 'views/Page'
 type DexSniperView = 'create' | 'my-bots'
 type BotFilter = 'active' | 'inactive'
 type DexPresetId = 'plaxswap' | 'quickswap' | 'sushiswap' | 'uniswap' | 'custom'
+type BuyTokenMode = 'native' | 'usdt'
 
 type BotInfo = {
   id: BigNumber
@@ -81,34 +85,38 @@ type TokenMetadata = {
 }
 
 const BOT_FEE = parseUnits('1', 18)
-const NATIVE_BUY_TOKEN = 'native'
+const NATIVE_BUY_TOKEN: BuyTokenMode = 'native'
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const POLYGON_CHAIN_ID = 137
 const DEFAULT_SLIPPAGE = '20'
 const DEFAULT_MIN_LIQUIDITY = '100'
 const CUSTOM_DEX_PRESET: DexPresetId = 'custom'
-const DEX_PRESETS: Array<{ id: DexPresetId; label: string; router?: string; factory?: string }> = [
+const DEX_PRESETS: Array<{ id: DexPresetId; label: string; logoURI?: string; router?: string; factory?: string }> = [
   {
     id: 'plaxswap',
     label: 'Plaxswap',
+    logoURI: 'https://plaxswap.github.io/blockchain/logo.png',
     router: '0x09bfaA0E9B73D4741AE3721b6F82409e79695eBF',
     factory: '0x709e3C6b22993189327a8CFebD572b6cc459fe40',
   },
   {
     id: 'quickswap',
     label: 'QuickSwap',
+    logoURI: 'https://cryptologos.cc/logos/quickswap-quick-logo.png',
     router: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff',
     factory: '0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32',
   },
   {
     id: 'sushiswap',
     label: 'SushiSwap',
+    logoURI: 'https://cryptologos.cc/logos/sushiswap-sushi-logo.png',
     router: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506',
     factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4',
   },
   {
     id: 'uniswap',
     label: 'UniSwap',
+    logoURI: 'https://cryptologos.cc/logos/uniswap-uni-logo.png',
     router: '0xedf6066a2b290C185783862C7F4776A2C8077AD1',
     factory: '0x9e5A52f57b3038F1B8EeE45F28b3C1967e22799C',
   },
@@ -117,13 +125,150 @@ const DEX_PRESETS: Array<{ id: DexPresetId; label: string; router?: string; fact
     label: 'Custom DEX',
   },
 ]
+const BUY_TOKEN_OPTIONS: Array<{ id: BuyTokenMode; label: string; logoURI: string }> = [
+  {
+    id: NATIVE_BUY_TOKEN,
+    label: 'POL',
+    logoURI: 'https://plaxswap.github.io/blockchain/polygon/assets/0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270/logo.png',
+  },
+  {
+    id: 'usdt',
+    label: 'USDT',
+    logoURI: 'https://plaxswap.github.io/blockchain/polygon/assets/0xc2132D05D31c914a87C6611C10748AEb04B58e8F/logo.png',
+  },
+]
 const ERC20_METADATA_ABI = ['function name() view returns (string)', 'function symbol() view returns (string)', 'function decimals() view returns (uint8)']
+
+const SelectWrapper = styled.div`
+  position: relative;
+`
+
+const SelectButton = styled.button`
+  width: 100%;
+  height: 48px;
+  border: 1px solid ${({ theme }) => theme.colors.inputSecondary};
+  border-radius: 16px;
+  background-color: ${({ theme }) => theme.colors.input};
+  color: ${({ theme }) => theme.colors.text};
+  font-size: 16px;
+  padding: 0 16px;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`
+
+const SelectMenu = styled.div`
+  position: absolute;
+  top: 54px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: min(360px, 25vh);
+  overflow-y: auto;
+  border: 1px solid ${({ theme }) => theme.colors.cardBorder};
+  border-radius: 16px;
+  background-color: ${({ theme }) => theme.card.background};
+  padding: 6px;
+  box-shadow: ${({ theme }) => theme.shadows.level1};
+  scrollbar-width: thin;
+`
+
+const SelectOption = styled.button<{ selected?: boolean }>`
+  width: 100%;
+  height: 42px;
+  border: 0;
+  border-radius: 10px;
+  background: ${({ selected, theme }) => (selected ? theme.colors.input : 'transparent')};
+  color: ${({ theme }) => theme.colors.text};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-weight: 600;
+  text-align: left;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.input};
+  }
+`
+
+const LogoFallback = styled.div`
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.invertedContrast};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+`
 
 const toBps = (value: string) => {
   const parsed = Number(value)
   if (!Number.isFinite(parsed) || parsed < 0) return null
   return Math.round(parsed * 100)
 }
+
+type SelectOptionConfig<T extends string> = {
+  id: T
+  label: string
+  logoURI?: string
+}
+
+const OptionLogo: React.FC<{ option: SelectOptionConfig<string> }> = ({ option }) =>
+  option.logoURI ? (
+    <TokenLogo srcs={[option.logoURI]} width="24px" height="24px" style={{ borderRadius: '50%', flexShrink: 0 }} />
+  ) : (
+    <LogoFallback>{option.label.slice(0, 1)}</LogoFallback>
+  )
+
+const PrettySelect = <T extends string>({
+  selected,
+  options,
+  isOpen,
+  onToggle,
+  onSelect,
+}: {
+  selected: SelectOptionConfig<T>
+  options: Array<SelectOptionConfig<T>>
+  isOpen: boolean
+  onToggle: () => void
+  onSelect: (value: T) => void
+}) => (
+  <SelectWrapper>
+    <SelectButton type="button" onClick={onToggle}>
+      <Flex alignItems="center" style={{ gap: '8px' }}>
+        <OptionLogo option={selected} />
+        <Text bold>{selected.label}</Text>
+      </Flex>
+      <ChevronDownIcon color="text" width="20px" />
+    </SelectButton>
+    {isOpen ? (
+      <SelectMenu>
+        {options.map((option) => (
+          <SelectOption
+            key={option.id}
+            type="button"
+            selected={option.id === selected.id}
+            onClick={() => {
+              onSelect(option.id)
+            }}
+          >
+            <Flex alignItems="center" style={{ gap: '8px' }}>
+              <OptionLogo option={option} />
+              <Text bold>{option.label}</Text>
+            </Flex>
+          </SelectOption>
+        ))}
+      </SelectMenu>
+    ) : null}
+  </SelectWrapper>
+)
 
 const isInactiveBot = (bot: BotInfo) =>
   bot.status === 2 && bot.remainingBuyAmount.eq(0) && bot.acquiredAmount.eq(0) && bot.proceedsAmount.eq(0)
@@ -562,7 +707,7 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
   const [router, setRouter] = useState('')
   const [factory, setFactory] = useState('')
   const [targetToken, setTargetToken] = useState('')
-  const [buyTokenMode, setBuyTokenMode] = useState(NATIVE_BUY_TOKEN)
+  const [buyTokenMode, setBuyTokenMode] = useState<BuyTokenMode>(NATIVE_BUY_TOKEN)
   const [buyAmount, setBuyAmount] = useState('')
   const [takeProfit, setTakeProfit] = useState('100')
   const [stopLoss, setStopLoss] = useState('30')
@@ -574,11 +719,13 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
   const [actionBotId, setActionBotId] = useState('')
   const [botFilter, setBotFilter] = useState<BotFilter>('active')
   const [expandedBotId, setExpandedBotId] = useState('')
+  const [openSelect, setOpenSelect] = useState<'dex' | 'buyToken' | null>(null)
 
   const buyWithNative = buyTokenMode === NATIVE_BUY_TOKEN
   const buyTokenContract = buyWithNative ? null : usdtContract
   const buyDecimals = buyWithNative ? 18 : usdtToken.decimals
   const selectedDexPreset = useMemo(() => DEX_PRESETS.find((preset) => preset.id === dexPreset), [dexPreset])
+  const selectedBuyToken = useMemo(() => BUY_TOKEN_OPTIONS.find((option) => option.id === buyTokenMode) ?? BUY_TOKEN_OPTIONS[0], [buyTokenMode])
   const isCustomDex = dexPreset === CUSTOM_DEX_PRESET
   const routerAddress = selectedDexPreset?.router ?? router
   const factoryAddress = selectedDexPreset?.factory ?? factory
@@ -765,6 +912,10 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
     setExpandedBotId((currentBotId) => (currentBotId === botId ? '' : botId))
   }, [])
 
+  const toggleSelect = useCallback((select: typeof openSelect) => {
+    setOpenSelect((current) => (current === select ? null : select))
+  }, [])
+
   return (
     <Page>
       <Box maxWidth="760px" mx="auto" width="100%">
@@ -790,27 +941,16 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
                   <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
                     {t('DEX')}
                   </Text>
-                  <select
-                    value={dexPreset}
-                    onChange={(event) => setDexPreset(event.target.value as DexPresetId)}
-                    style={{ width: '100%', height: 48 }}
-                  >
-                    {DEX_PRESETS.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.label}
-                      </option>
-                    ))}
-                  </select>
-                  {!isCustomDex && selectedDexPreset ? (
-                    <Flex mt="8px" flexDirection="column" style={{ gap: '4px' }}>
-                      <Text color="textSubtle" fontSize="12px" ellipsis>
-                        {t('Router')}: {selectedDexPreset.router}
-                      </Text>
-                      <Text color="textSubtle" fontSize="12px" ellipsis>
-                        {t('Factory')}: {selectedDexPreset.factory}
-                      </Text>
-                    </Flex>
-                  ) : null}
+                  <PrettySelect
+                    selected={selectedDexPreset ?? DEX_PRESETS[0]}
+                    options={DEX_PRESETS}
+                    isOpen={openSelect === 'dex'}
+                    onToggle={() => toggleSelect('dex')}
+                    onSelect={(value) => {
+                      setDexPreset(value)
+                      setOpenSelect(null)
+                    }}
+                  />
                 </Box>
 
                 {isCustomDex ? (
@@ -842,10 +982,16 @@ const DexSniper: React.FC<{ activeView?: DexSniperView }> = ({ activeView = 'cre
                     <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
                       {t('Buy With')}
                     </Text>
-                    <select value={buyTokenMode} onChange={(event) => setBuyTokenMode(event.target.value)} style={{ width: '100%', height: 48 }}>
-                      <option value={NATIVE_BUY_TOKEN}>POL</option>
-                      <option value="usdt">USDT</option>
-                    </select>
+                    <PrettySelect
+                      selected={selectedBuyToken}
+                      options={BUY_TOKEN_OPTIONS}
+                      isOpen={openSelect === 'buyToken'}
+                      onToggle={() => toggleSelect('buyToken')}
+                      onSelect={(value) => {
+                        setBuyTokenMode(value)
+                        setOpenSelect(null)
+                      }}
+                    />
                   </Box>
                   <Box width="100%">
                     <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
