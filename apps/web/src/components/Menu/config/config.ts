@@ -209,8 +209,12 @@ const config: (
           href: '/token-listing',
         },
         {
-          label: t('DEX Sniper'),
+          label: t('DEX Target Sniper'),
           href: '/dex-sniper',
+        },
+        {
+          label: t('DEX New Pair Sniper'),
+          href: '/dex-new-pair-sniper',
         },
         {
           label: t('Token Locker'),

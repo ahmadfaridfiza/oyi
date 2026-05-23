@@ -1,0 +1,64 @@
+setup keeper bot on vps:
+
+ssh root@IP_VPS
+
+sudo fallocate -l 2G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+
+free -h
+
+sudo apt update
+sudo apt install -y curl git build-essential
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+
+node -v
+yarn -v
+
+git clone https://github.com/your-repo.git
+cd folder repo
+
+yarn install
+
+cd apps/web
+cp .env.example .env
+nano .env (add your keeper private key)
+
+yarn dex-sniper:keeper 
+(if success, use ctrl+c to stop and setup pm2)
+
+sudo npm install -g pm2
+
+pm2 start yarn --name plax-dex-sniper -- dex-sniper:keeper
+pm2 save
+pm2 startup
+
+pm2 status
+pm2 logs plax-dex-sniper
+
+(if update .env use this restart)
+pm2 restart plax-dex-sniper
+
+(if update from github use this command)
+cd ~/folder repo
+git pull
+yarn install
+pm2 restart plax-dex-sniper
+
+---important note (if nodejs v18 not supported use v20)---
+apt remove -y nodejs
+
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+
+node -v
+npm -v
+
+corepack enable
+corepack prepare yarn@1.22.22 --activate
+

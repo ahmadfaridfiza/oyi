@@ -143,7 +143,11 @@ export default {
     80001: '',
   },
   dexSniper: {
-    137: '0x354f392903545CbE1806645eC419A79f0Cbb71d7',
+    137: '0x71586dF61726fF36329530c4001E4dB9F2b832c8',
+    80001: '',
+  },
+  newPairSniper: {
+    137: '0x30a0AaFE3F98731aA66e9F95B7c8522fB8402023',
     80001: '',
   },
   stableSwapNativeHelper: {

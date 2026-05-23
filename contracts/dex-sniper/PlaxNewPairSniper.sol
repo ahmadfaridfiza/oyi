@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-interface ISniperERC20 {
+interface INewPairSniperERC20 {
     function balanceOf(address account) external view returns (uint256);
 
     function approve(address spender, uint256 amount) external returns (bool);
@@ -11,7 +11,7 @@ interface ISniperERC20 {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
-interface IV2Router {
+interface INewPairV2Router {
     function swapExactETHForTokensSupportingFeeOnTransferTokens(
         uint256 amountOutMin,
         address[] calldata path,
@@ -36,7 +36,7 @@ interface IV2Router {
     ) external;
 }
 
-contract PlaxDexSniper {
+contract PlaxNewPairSniper {
     uint8 public constant STATUS_ACTIVE = 1;
     uint8 public constant STATUS_PAUSED = 2;
     uint8 public constant STATUS_BOUGHT = 3;
@@ -47,7 +47,9 @@ contract PlaxDexSniper {
         address owner;
         address router;
         address factory;
+        address quoteToken;
         address targetToken;
+        address pair;
         address buyToken;
         uint256 buyAmount;
         uint256 remainingBuyAmount;
@@ -61,12 +63,12 @@ contract PlaxDexSniper {
         uint8 status;
         bool buyWithNative;
         uint256 createdAt;
+        uint256 detectedAt;
         uint256 boughtAt;
         uint256 soldAt;
-        uint256 cycleCount;
     }
 
-    ISniperERC20 public feeToken;
+    INewPairSniperERC20 public feeToken;
     address public feeReceiver;
     address public owner;
     address public keeper;
@@ -79,17 +81,18 @@ contract PlaxDexSniper {
     event BotCreated(
         uint256 indexed id,
         address indexed owner,
-        address indexed targetToken,
         address router,
         address factory,
+        address quoteToken,
         address buyToken,
         uint256 buyAmount,
         bool buyWithNative
     );
+    event PairSelected(uint256 indexed id, address indexed targetToken, address indexed pair);
+    event BotBought(uint256 indexed id, uint256 spentAmount, uint256 acquiredAmount);
+    event BotSold(uint256 indexed id, uint256 soldAmount, uint256 outputAmount);
     event BotPaused(uint256 indexed id);
     event BotResumed(uint256 indexed id);
-    event BotBought(uint256 indexed id, uint256 spentAmount, uint256 acquiredAmount);
-    event BotSold(uint256 indexed id, uint256 soldAmount);
     event BotWithdrawn(uint256 indexed id, address indexed token, uint256 amount);
     event KeeperUpdated(address keeper);
     event FeeUpdated(uint256 feeAmount);
@@ -115,7 +118,7 @@ contract PlaxDexSniper {
         require(feeToken_ != address(0), "Invalid fee token");
         require(feeReceiver_ != address(0), "Invalid fee receiver");
 
-        feeToken = ISniperERC20(feeToken_);
+        feeToken = INewPairSniperERC20(feeToken_);
         feeReceiver = feeReceiver_;
         feeAmount = feeAmount_;
         owner = msg.sender;
@@ -130,7 +133,7 @@ contract PlaxDexSniper {
     function createBot(
         address router,
         address factory,
-        address targetToken,
+        address quoteToken,
         address buyToken,
         uint256 buyAmount,
         uint16 stopLossBps,
@@ -141,7 +144,7 @@ contract PlaxDexSniper {
     ) external payable returns (uint256 botId) {
         require(router != address(0), "Invalid router");
         require(factory != address(0), "Invalid factory");
-        require(targetToken != address(0), "Invalid target");
+        require(quoteToken != address(0), "Invalid quote token");
         require(buyAmount > 0, "Buy amount required");
         require(stopLossBps <= 10000 && takeProfitBps <= 100000 && slippageBps <= 10000, "Invalid bps");
         require(feeToken.transferFrom(msg.sender, feeReceiver, feeAmount), "Fee transfer failed");
@@ -150,9 +153,9 @@ contract PlaxDexSniper {
             require(msg.value == buyAmount, "Invalid native amount");
             buyToken = address(0);
         } else {
-            require(buyToken != address(0), "Invalid buy token");
+            require(buyToken == quoteToken, "Buy token must match quote");
             require(msg.value == 0, "Native not required");
-            require(ISniperERC20(buyToken).transferFrom(msg.sender, address(this), buyAmount), "Buy token transfer failed");
+            require(INewPairSniperERC20(buyToken).transferFrom(msg.sender, address(this), buyAmount), "Buy transfer failed");
         }
 
         botId = ++botCount;
@@ -161,7 +164,9 @@ contract PlaxDexSniper {
             owner: msg.sender,
             router: router,
             factory: factory,
-            targetToken: targetToken,
+            quoteToken: quoteToken,
+            targetToken: address(0),
+            pair: address(0),
             buyToken: buyToken,
             buyAmount: buyAmount,
             remainingBuyAmount: buyAmount,
@@ -175,13 +180,13 @@ contract PlaxDexSniper {
             status: STATUS_ACTIVE,
             buyWithNative: buyWithNative,
             createdAt: block.timestamp,
+            detectedAt: 0,
             boughtAt: 0,
-            soldAt: 0,
-            cycleCount: 0
+            soldAt: 0
         });
         userBotIds[msg.sender].push(botId);
 
-        emit BotCreated(botId, msg.sender, targetToken, router, factory, buyToken, buyAmount, buyWithNative);
+        emit BotCreated(botId, msg.sender, router, factory, quoteToken, buyToken, buyAmount, buyWithNative);
     }
 
     function pauseBot(uint256 botId) external onlyBotOwner(botId) {
@@ -201,29 +206,37 @@ contract PlaxDexSniper {
 
     function executeBuy(
         uint256 botId,
+        address targetToken,
+        address pair,
         address[] calldata path,
         uint256 amountOutMin,
         uint256 deadline
     ) external onlyKeeper {
         BotConfig storage bot = bots[botId];
         require(bot.status == STATUS_ACTIVE, "Bot not active");
-        require(path.length >= 2 && path[path.length - 1] == bot.targetToken, "Invalid path");
+        require(bot.remainingBuyAmount > 0, "No buy amount");
+        require(bot.targetToken == address(0), "Already selected");
+        require(targetToken != address(0) && targetToken != bot.quoteToken, "Invalid target");
+        require(pair != address(0), "Invalid pair");
+        require(path.length >= 2 && path[0] == bot.quoteToken && path[path.length - 1] == targetToken, "Invalid path");
 
-        uint256 beforeBalance = ISniperERC20(bot.targetToken).balanceOf(address(this));
+        uint256 beforeBalance = INewPairSniperERC20(targetToken).balanceOf(address(this));
         uint256 spentAmount = bot.remainingBuyAmount;
         bot.remainingBuyAmount = 0;
+        bot.targetToken = targetToken;
+        bot.pair = pair;
+        bot.detectedAt = block.timestamp;
 
         if (bot.buyWithNative) {
-            IV2Router(bot.router).swapExactETHForTokensSupportingFeeOnTransferTokens{value: spentAmount}(
+            INewPairV2Router(bot.router).swapExactETHForTokensSupportingFeeOnTransferTokens{value: spentAmount}(
                 amountOutMin,
                 path,
                 address(this),
                 deadline
             );
         } else {
-            require(path[0] == bot.buyToken, "Invalid buy token path");
-            ISniperERC20(bot.buyToken).approve(bot.router, spentAmount);
-            IV2Router(bot.router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            INewPairSniperERC20(bot.buyToken).approve(bot.router, spentAmount);
+            INewPairV2Router(bot.router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 spentAmount,
                 amountOutMin,
                 path,
@@ -232,14 +245,14 @@ contract PlaxDexSniper {
             );
         }
 
-        uint256 acquired = ISniperERC20(bot.targetToken).balanceOf(address(this)) - beforeBalance;
+        uint256 acquired = INewPairSniperERC20(targetToken).balanceOf(address(this)) - beforeBalance;
         require(acquired > 0, "Nothing bought");
 
-        bot.acquiredAmount += acquired;
-        bot.buyAmount = spentAmount;
+        bot.acquiredAmount = acquired;
         bot.status = STATUS_BOUGHT;
         bot.boughtAt = block.timestamp;
 
+        emit PairSelected(botId, targetToken, pair);
         emit BotBought(botId, spentAmount, acquired);
     }
 
@@ -253,20 +266,21 @@ contract PlaxDexSniper {
         BotConfig storage bot = bots[botId];
         require(bot.status == STATUS_BOUGHT, "Bot not bought");
         require(path.length >= 2 && path[0] == bot.targetToken, "Invalid path");
+        require(sellToNative == bot.buyWithNative, "Invalid output mode");
 
         uint256 sellAmount = bot.acquiredAmount;
         bot.acquiredAmount = 0;
-        ISniperERC20(bot.targetToken).approve(bot.router, sellAmount);
+        INewPairSniperERC20(bot.targetToken).approve(bot.router, sellAmount);
 
         uint256 beforeOutputBalance;
         address outputToken = sellToNative ? address(0) : path[path.length - 1];
-        require(sellToNative == bot.buyWithNative, "Invalid output mode");
         if (!sellToNative) {
             require(outputToken == bot.buyToken, "Invalid output token");
         }
+
         if (sellToNative) {
             beforeOutputBalance = address(this).balance;
-            IV2Router(bot.router).swapExactTokensForETHSupportingFeeOnTransferTokens(
+            INewPairV2Router(bot.router).swapExactTokensForETHSupportingFeeOnTransferTokens(
                 sellAmount,
                 amountOutMin,
                 path,
@@ -274,8 +288,8 @@ contract PlaxDexSniper {
                 deadline
             );
         } else {
-            beforeOutputBalance = ISniperERC20(outputToken).balanceOf(address(this));
-            IV2Router(bot.router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            beforeOutputBalance = INewPairSniperERC20(outputToken).balanceOf(address(this));
+            INewPairV2Router(bot.router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
                 sellAmount,
                 amountOutMin,
                 path,
@@ -286,83 +300,38 @@ contract PlaxDexSniper {
 
         uint256 outputAmount = sellToNative
             ? address(this).balance - beforeOutputBalance
-            : ISniperERC20(outputToken).balanceOf(address(this)) - beforeOutputBalance;
+            : INewPairSniperERC20(outputToken).balanceOf(address(this)) - beforeOutputBalance;
 
-        bot.remainingBuyAmount += outputAmount;
-        bot.buyAmount = outputAmount;
         bot.proceedsToken = outputToken;
-        bot.status = STATUS_ACTIVE;
+        bot.proceedsAmount += outputAmount;
+        bot.status = STATUS_SOLD;
         bot.soldAt = block.timestamp;
-        bot.cycleCount += 1;
 
-        emit BotSold(botId, sellAmount);
-    }
-
-    function emergencySell(
-        uint256 botId,
-        address[] calldata path,
-        uint256 amountOutMin,
-        uint256 deadline,
-        bool sellToNative
-    ) external onlyBotOwner(botId) {
-        BotConfig storage bot = bots[botId];
-        require(bot.status == STATUS_BOUGHT || bot.status == STATUS_PAUSED, "Cannot sell");
-        require(bot.acquiredAmount > 0, "No target tokens");
-        require(path.length >= 2 && path[0] == bot.targetToken, "Invalid path");
-
-        uint256 sellAmount = bot.acquiredAmount;
-        bot.acquiredAmount = 0;
-        ISniperERC20(bot.targetToken).approve(bot.router, sellAmount);
-
-        uint256 beforeOutputBalance;
-        address outputToken = sellToNative ? address(0) : path[path.length - 1];
-        require(sellToNative == bot.buyWithNative, "Invalid output mode");
-        if (!sellToNative) {
-            require(outputToken == bot.buyToken, "Invalid output token");
-        }
-        if (sellToNative) {
-            beforeOutputBalance = address(this).balance;
-            IV2Router(bot.router).swapExactTokensForETHSupportingFeeOnTransferTokens(
-                sellAmount,
-                amountOutMin,
-                path,
-                address(this),
-                deadline
-            );
-        } else {
-            beforeOutputBalance = ISniperERC20(outputToken).balanceOf(address(this));
-            IV2Router(bot.router).swapExactTokensForTokensSupportingFeeOnTransferTokens(
-                sellAmount,
-                amountOutMin,
-                path,
-                address(this),
-                deadline
-            );
-        }
-
-        uint256 outputAmount = sellToNative
-            ? address(this).balance - beforeOutputBalance
-            : ISniperERC20(outputToken).balanceOf(address(this)) - beforeOutputBalance;
-
-        bot.remainingBuyAmount += outputAmount;
-        bot.buyAmount = outputAmount;
-        bot.proceedsToken = outputToken;
-        bot.status = STATUS_PAUSED;
-        bot.soldAt = block.timestamp;
-        bot.cycleCount += 1;
-
-        emit BotSold(botId, sellAmount);
+        emit BotSold(botId, sellAmount, outputAmount);
     }
 
     function withdrawNative(uint256 botId, uint256 amount) external onlyBotOwner(botId) {
         BotConfig storage bot = bots[botId];
-        require(bot.status == STATUS_PAUSED, "Pause first");
+        require(bot.status == STATUS_PAUSED || bot.status == STATUS_SOLD, "Pause first");
         uint256 available = 0;
         if (bot.buyWithNative) {
             available += bot.remainingBuyAmount;
         }
+        if (bot.proceedsToken == address(0)) {
+            available += bot.proceedsAmount;
+        }
         require(available >= amount, "Insufficient native");
-        bot.remainingBuyAmount -= amount;
+
+        uint256 remainingAmount = amount;
+        if (bot.buyWithNative && bot.remainingBuyAmount > 0) {
+            uint256 fromRemaining = remainingAmount > bot.remainingBuyAmount ? bot.remainingBuyAmount : remainingAmount;
+            bot.remainingBuyAmount -= fromRemaining;
+            remainingAmount -= fromRemaining;
+        }
+        if (remainingAmount > 0) {
+            bot.proceedsAmount -= remainingAmount;
+        }
+
         require(address(this).balance >= amount, "Insufficient native balance");
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Native transfer failed");
@@ -372,7 +341,7 @@ contract PlaxDexSniper {
     function withdrawToken(uint256 botId, address token, uint256 amount) external onlyBotOwner(botId) {
         require(token != address(0), "Invalid token");
         BotConfig storage bot = bots[botId];
-        require(bot.status == STATUS_PAUSED, "Pause first");
+        require(bot.status == STATUS_PAUSED || bot.status == STATUS_SOLD, "Pause first");
         uint256 available = 0;
         if (!bot.buyWithNative && token == bot.buyToken) {
             available += bot.remainingBuyAmount;
@@ -380,7 +349,11 @@ contract PlaxDexSniper {
         if (token == bot.targetToken) {
             available += bot.acquiredAmount;
         }
+        if (token == bot.proceedsToken) {
+            available += bot.proceedsAmount;
+        }
         require(available >= amount, "Insufficient token");
+
         uint256 remainingAmount = amount;
         if (!bot.buyWithNative && token == bot.buyToken && bot.remainingBuyAmount > 0) {
             uint256 fromRemaining = remainingAmount > bot.remainingBuyAmount ? bot.remainingBuyAmount : remainingAmount;
@@ -392,8 +365,11 @@ contract PlaxDexSniper {
             bot.acquiredAmount -= fromAcquired;
             remainingAmount -= fromAcquired;
         }
-        require(remainingAmount == 0, "Invalid withdraw token");
-        require(ISniperERC20(token).transfer(msg.sender, amount), "Token transfer failed");
+        if (remainingAmount > 0) {
+            bot.proceedsAmount -= remainingAmount;
+        }
+
+        require(INewPairSniperERC20(token).transfer(msg.sender, amount), "Token transfer failed");
         emit BotWithdrawn(botId, token, amount);
     }
 
@@ -430,10 +406,6 @@ contract PlaxDexSniper {
         }
 
         return results;
-    }
-
-    function getUserBotCount(address user) external view returns (uint256) {
-        return userBotIds[user].length;
     }
 
     function setKeeper(address keeper_) external onlyOwner {

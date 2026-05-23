@@ -4,14 +4,24 @@
     "inputs": [
       { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
       { "indexed": true, "internalType": "address", "name": "owner", "type": "address" },
-      { "indexed": true, "internalType": "address", "name": "targetToken", "type": "address" },
       { "indexed": false, "internalType": "address", "name": "router", "type": "address" },
       { "indexed": false, "internalType": "address", "name": "factory", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "quoteToken", "type": "address" },
       { "indexed": false, "internalType": "address", "name": "buyToken", "type": "address" },
       { "indexed": false, "internalType": "uint256", "name": "buyAmount", "type": "uint256" },
       { "indexed": false, "internalType": "bool", "name": "buyWithNative", "type": "bool" }
     ],
     "name": "BotCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "targetToken", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "pair", "type": "address" }
+    ],
+    "name": "PairSelected",
     "type": "event"
   },
   {
@@ -28,7 +38,8 @@
     "anonymous": false,
     "inputs": [
       { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
-      { "indexed": false, "internalType": "uint256", "name": "soldAmount", "type": "uint256" }
+      { "indexed": false, "internalType": "uint256", "name": "soldAmount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "outputAmount", "type": "uint256" }
     ],
     "name": "BotSold",
     "type": "event"
@@ -69,7 +80,7 @@
     "inputs": [
       { "internalType": "address", "name": "router", "type": "address" },
       { "internalType": "address", "name": "factory", "type": "address" },
-      { "internalType": "address", "name": "targetToken", "type": "address" },
+      { "internalType": "address", "name": "quoteToken", "type": "address" },
       { "internalType": "address", "name": "buyToken", "type": "address" },
       { "internalType": "uint256", "name": "buyAmount", "type": "uint256" },
       { "internalType": "uint16", "name": "stopLossBps", "type": "uint16" },
@@ -83,23 +94,13 @@
     "stateMutability": "payable",
     "type": "function"
   },
-  {
-    "inputs": [{ "internalType": "uint256", "name": "botId", "type": "uint256" }],
-    "name": "pauseBot",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [{ "internalType": "uint256", "name": "botId", "type": "uint256" }],
-    "name": "resumeBot",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
+  { "inputs": [{ "internalType": "uint256", "name": "botId", "type": "uint256" }], "name": "pauseBot", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+  { "inputs": [{ "internalType": "uint256", "name": "botId", "type": "uint256" }], "name": "resumeBot", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
   {
     "inputs": [
       { "internalType": "uint256", "name": "botId", "type": "uint256" },
+      { "internalType": "address", "name": "targetToken", "type": "address" },
+      { "internalType": "address", "name": "pair", "type": "address" },
       { "internalType": "address[]", "name": "path", "type": "address[]" },
       { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
       { "internalType": "uint256", "name": "deadline", "type": "uint256" }
@@ -118,19 +119,6 @@
       { "internalType": "bool", "name": "sellToNative", "type": "bool" }
     ],
     "name": "executeSell",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      { "internalType": "uint256", "name": "botId", "type": "uint256" },
-      { "internalType": "address[]", "name": "path", "type": "address[]" },
-      { "internalType": "uint256", "name": "amountOutMin", "type": "uint256" },
-      { "internalType": "uint256", "name": "deadline", "type": "uint256" },
-      { "internalType": "bool", "name": "sellToNative", "type": "bool" }
-    ],
-    "name": "emergencySell",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -170,7 +158,9 @@
           { "internalType": "address", "name": "owner", "type": "address" },
           { "internalType": "address", "name": "router", "type": "address" },
           { "internalType": "address", "name": "factory", "type": "address" },
+          { "internalType": "address", "name": "quoteToken", "type": "address" },
           { "internalType": "address", "name": "targetToken", "type": "address" },
+          { "internalType": "address", "name": "pair", "type": "address" },
           { "internalType": "address", "name": "buyToken", "type": "address" },
           { "internalType": "uint256", "name": "buyAmount", "type": "uint256" },
           { "internalType": "uint256", "name": "remainingBuyAmount", "type": "uint256" },
@@ -184,11 +174,11 @@
           { "internalType": "uint8", "name": "status", "type": "uint8" },
           { "internalType": "bool", "name": "buyWithNative", "type": "bool" },
           { "internalType": "uint256", "name": "createdAt", "type": "uint256" },
+          { "internalType": "uint256", "name": "detectedAt", "type": "uint256" },
           { "internalType": "uint256", "name": "boughtAt", "type": "uint256" },
-          { "internalType": "uint256", "name": "soldAt", "type": "uint256" },
-          { "internalType": "uint256", "name": "cycleCount", "type": "uint256" }
+          { "internalType": "uint256", "name": "soldAt", "type": "uint256" }
         ],
-        "internalType": "struct PlaxDexSniper.BotConfig[]",
+        "internalType": "struct PlaxNewPairSniper.BotConfig[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -209,7 +199,9 @@
           { "internalType": "address", "name": "owner", "type": "address" },
           { "internalType": "address", "name": "router", "type": "address" },
           { "internalType": "address", "name": "factory", "type": "address" },
+          { "internalType": "address", "name": "quoteToken", "type": "address" },
           { "internalType": "address", "name": "targetToken", "type": "address" },
+          { "internalType": "address", "name": "pair", "type": "address" },
           { "internalType": "address", "name": "buyToken", "type": "address" },
           { "internalType": "uint256", "name": "buyAmount", "type": "uint256" },
           { "internalType": "uint256", "name": "remainingBuyAmount", "type": "uint256" },
@@ -223,11 +215,11 @@
           { "internalType": "uint8", "name": "status", "type": "uint8" },
           { "internalType": "bool", "name": "buyWithNative", "type": "bool" },
           { "internalType": "uint256", "name": "createdAt", "type": "uint256" },
+          { "internalType": "uint256", "name": "detectedAt", "type": "uint256" },
           { "internalType": "uint256", "name": "boughtAt", "type": "uint256" },
-          { "internalType": "uint256", "name": "soldAt", "type": "uint256" },
-          { "internalType": "uint256", "name": "cycleCount", "type": "uint256" }
+          { "internalType": "uint256", "name": "soldAt", "type": "uint256" }
         ],
-        "internalType": "struct PlaxDexSniper.BotConfig[]",
+        "internalType": "struct PlaxNewPairSniper.BotConfig[]",
         "name": "",
         "type": "tuple[]"
       }
@@ -235,25 +227,6 @@
     "stateMutability": "view",
     "type": "function"
   },
-  {
-    "inputs": [],
-    "name": "feeAmount",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "feeReceiver",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "keeper",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
+  { "inputs": [], "name": "feeAmount", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+  { "inputs": [], "name": "keeper", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" }
 ]

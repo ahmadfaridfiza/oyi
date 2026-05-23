@@ -13,10 +13,12 @@ import zapAbi from 'config/abi/zap.json'
 import tokenDeployerAbi from 'config/abi/tokenDeployer.json'
 import tokenLockerAbi from 'config/abi/tokenLocker.json'
 import dexSniperAbi from 'config/abi/dexSniper.json'
+import newPairSniperAbi from 'config/abi/newPairSniper.json'
 import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
 import { useMemo } from 'react'
 import {
   getMulticallAddress,
+  getNewPairSniperAddress,
   getPredictionsV1Address,
   getTokenDeployerAddress,
   getDexSniperAddress,
@@ -376,6 +378,11 @@ export function useTokenLockerContract(withSignerIfPossible = true) {
 export function useDexSniperContract(withSignerIfPossible = true) {
   const { chainId } = useActiveChainId()
   return useContract(getDexSniperAddress(chainId), dexSniperAbi, withSignerIfPossible)
+}
+
+export function useNewPairSniperContract(withSignerIfPossible = true) {
+  const { chainId } = useActiveChainId()
+  return useContract(getNewPairSniperAddress(chainId), newPairSniperAbi, withSignerIfPossible)
 }
 
 export function useBCakeFarmBoosterContract(withSignerIfPossible = true) {

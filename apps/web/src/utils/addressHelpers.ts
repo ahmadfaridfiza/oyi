@@ -122,6 +122,10 @@ export const getDexSniperAddress = (chainId?: number) => {
   return getAddress(addresses.dexSniper, chainId)
 }
 
+export const getNewPairSniperAddress = (chainId?: number) => {
+  return getAddress(addresses.newPairSniper, chainId)
+}
+
 export const getICakeAddress = () => {
   return getAddress(addresses.iCake)
 }
