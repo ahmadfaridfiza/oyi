@@ -643,6 +643,7 @@ const SmartStakeModal: React.FC<
   const { t } = useTranslation()
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
+  const { chainId } = useActiveChainId()
   const smartPoolsContract = useSmartPoolsContract()
   const stakingTokenContract = useTokenContract(pool.stakingToken)
   const [amount, setAmount] = useState('')
@@ -712,6 +713,7 @@ const SmartStakeModal: React.FC<
               rewardToken={pool.rewardToken}
               stakingLogoURI={pool.stakingLogoURI}
               rewardLogoURI={pool.rewardLogoURI}
+              chainId={chainId}
               size={28}
             />
             <Text bold>{stakingMetadata.symbol}</Text>
@@ -890,7 +892,7 @@ const SmartPoolRow: React.FC<{
           chainId={chainId}
         />
         <Box>
-          <Text bold>{title}</Text>
+          <Text bold>{t('Earn')} {rewardMetadata.symbol}</Text>
           <Text color="textSubtle" fontSize="12px">
             {t('Stake')} {stakingMetadata.symbol}
           </Text>
