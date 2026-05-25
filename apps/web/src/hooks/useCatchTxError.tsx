@@ -29,6 +29,33 @@ type TxError = {
 // -32000 is insufficient funds for gas * price + value
 const isGasEstimationError = (err: TxError): boolean => err?.data?.code === -32000
 
+const getCallRequest = (tx: TransactionResponse) => {
+  const callRequest = {
+    from: tx.from,
+    to: tx.to,
+    data: tx.data,
+    value: tx.value,
+    gasLimit: tx.gasLimit,
+    type: tx.type,
+    accessList: tx.accessList,
+  }
+
+  return callRequest
+}
+
+const getTxDebugInfo = (tx: TransactionResponse) => ({
+  hash: tx.hash,
+  from: tx.from,
+  to: tx.to,
+  dataSelector: tx.data?.slice(0, 10),
+  blockNumber: tx.blockNumber,
+  type: tx.type,
+  gasLimit: tx.gasLimit?.toString(),
+  gasPrice: tx.gasPrice?.toString(),
+  maxFeePerGas: tx.maxFeePerGas?.toString(),
+  maxPriorityFeePerGas: tx.maxPriorityFeePerGas?.toString(),
+})
+
 export default function useCatchTxError(): CatchTxErrorReturn {
   const { provider } = useActiveWeb3React()
   const { t } = useTranslation()
@@ -76,14 +103,33 @@ export default function useCatchTxError(): CatchTxErrorReturn {
       } catch (error: any) {
         if (!isUserRejected(error)) {
           if (!tx) {
+            console.error('[useCatchTxError] Transaction failed before tx response', error)
             handleNormalError(error)
           } else {
+            const callRequest = getCallRequest(tx)
+            console.error('[useCatchTxError] Transaction failed after tx response', {
+              tx: getTxDebugInfo(tx),
+              originalError: error,
+              replayCallRequest: {
+                ...callRequest,
+                gasLimit: callRequest.gasLimit?.toString(),
+                value: callRequest.value?.toString(),
+              },
+            })
             provider
-              .call(tx, tx.blockNumber)
+              .call(callRequest, tx.blockNumber)
               .then(() => {
+                console.error('[useCatchTxError] Replay call succeeded, original error is likely wallet/RPC/gas related', {
+                  tx: getTxDebugInfo(tx),
+                  originalError: error,
+                })
                 handleNormalError(error, tx)
               })
               .catch((err: any) => {
+                console.error('[useCatchTxError] Replay call failed, possible contract revert reason source', {
+                  tx: getTxDebugInfo(tx),
+                  replayError: err,
+                })
                 if (isGasEstimationError(err)) {
                   handleNormalError(error, tx)
                 } else {
@@ -111,6 +157,12 @@ export default function useCatchTxError(): CatchTxErrorReturn {
                   const isRevertedError = indexInfo >= 0
 
                   if (isRevertedError) reason = reason.substring(indexInfo + REVERT_STR.length)
+
+                  console.error('[useCatchTxError] Parsed transaction failure reason', {
+                    tx: getTxDebugInfo(tx),
+                    reason,
+                    isRevertedError,
+                  })
 
                   toastError(
                     t('Failed'),
@@ -153,14 +205,33 @@ export default function useCatchTxError(): CatchTxErrorReturn {
       } catch (error: any) {
         if (!isUserRejected(error)) {
           if (!tx) {
+            console.error('[useCatchTxError] Transaction response failed before tx response', error)
             handleNormalError(error)
           } else {
+            const callRequest = getCallRequest(tx)
+            console.error('[useCatchTxError] Transaction response failed after tx response', {
+              tx: getTxDebugInfo(tx),
+              originalError: error,
+              replayCallRequest: {
+                ...callRequest,
+                gasLimit: callRequest.gasLimit?.toString(),
+                value: callRequest.value?.toString(),
+              },
+            })
             provider
-              .call(tx, tx.blockNumber)
+              .call(callRequest, tx.blockNumber)
               .then(() => {
+                console.error('[useCatchTxError] Replay call succeeded, original response error is likely wallet/RPC/gas related', {
+                  tx: getTxDebugInfo(tx),
+                  originalError: error,
+                })
                 handleNormalError(error, tx)
               })
               .catch((err: any) => {
+                console.error('[useCatchTxError] Replay call failed, possible contract revert reason source', {
+                  tx: getTxDebugInfo(tx),
+                  replayError: err,
+                })
                 if (isGasEstimationError(err)) {
                   handleNormalError(error, tx)
                 } else {
@@ -188,6 +259,12 @@ export default function useCatchTxError(): CatchTxErrorReturn {
                   const isRevertedError = indexInfo >= 0
 
                   if (isRevertedError) reason = reason.substring(indexInfo + REVERT_STR.length)
+
+                  console.error('[useCatchTxError] Parsed transaction response failure reason', {
+                    tx: getTxDebugInfo(tx),
+                    reason,
+                    isRevertedError,
+                  })
 
                   toastError(
                     t('Failed'),

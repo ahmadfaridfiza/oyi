@@ -1,12 +1,67 @@
 import { AppState } from 'state'
 import { useSelector } from 'react-redux'
 import { useCallback } from 'react'
+import { BigNumber } from '@ethersproject/bignumber'
 import { TransactionResponse } from '@ethersproject/providers'
 import { Contract, CallOverrides } from '@ethersproject/contracts'
 import { useGasPrice } from 'state/user/hooks'
 import get from 'lodash/get'
 import { addBreadcrumb } from '@sentry/nextjs'
 import { GAS_PRICE_GWEI } from '../state/types'
+
+const GAS_ESTIMATE_BUFFER_BPS = 13000
+
+const cleanGasOverrides = (overrides: CallOverrides = {}): CallOverrides => {
+  const nextOverrides = { ...overrides }
+  const hasEip1559Fee = nextOverrides.maxFeePerGas || nextOverrides.maxPriorityFeePerGas
+
+  if (hasEip1559Fee) {
+    delete nextOverrides.gasPrice
+    return nextOverrides
+  }
+
+  return nextOverrides
+}
+
+const withGasEstimateBuffer = (gasEstimate: BigNumber) => gasEstimate.mul(GAS_ESTIMATE_BUFFER_BPS).div(10000)
+
+const withEstimatedGasLimit = async (
+  contract: Contract,
+  methodName: string,
+  methodArgs: any[],
+  overrides: CallOverrides,
+): Promise<CallOverrides> => {
+  const estimateGasMethod = get(contract.estimateGas, methodName)
+
+  if (!estimateGasMethod) {
+    return overrides
+  }
+
+  try {
+    const { gasLimit, ...estimateOverrides } = overrides
+    const gasEstimate = await estimateGasMethod(...methodArgs, estimateOverrides)
+    const bufferedGasEstimate = withGasEstimateBuffer(gasEstimate)
+    const configuredGasLimit = gasLimit ? BigNumber.from(gasLimit) : null
+
+    if (configuredGasLimit && configuredGasLimit.gte(bufferedGasEstimate)) {
+      return overrides
+    }
+
+    return {
+      ...overrides,
+      gasLimit: bufferedGasEstimate,
+    }
+  } catch (error) {
+    console.error('[useCallWithGasPrice] Gas estimate failed, using configured overrides', {
+      contractAddress: contract.address,
+      methodName,
+      methodArgs,
+      overrides,
+      error,
+    })
+    return overrides
+  }
+}
 
 export function useCallWithGasPrice() {
   const gasPrice = useGasPrice()
@@ -42,11 +97,9 @@ export function useCallWithGasPrice() {
       })
 
       const contractMethod = get(contract, methodName)
-      const hasManualGasPriceOverride = overrides?.gasPrice
-      const tx = await contractMethod(
-        ...methodArgs,
-        hasManualGasPriceOverride ? { ...overrides } : { ...overrides, gasPrice },
-      )
+      const cleanOverrides = cleanGasOverrides(overrides ?? {})
+      const callOverrides = await withEstimatedGasLimit(contract, methodName, methodArgs, cleanOverrides)
+      const tx = await contractMethod(...methodArgs, callOverrides)
 
       if (tx) {
         addBreadcrumb({
