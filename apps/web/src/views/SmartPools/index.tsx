@@ -353,6 +353,9 @@ const LogoInput: React.FC<{
         {helper}
       </Text>
       <Input value={logoURI} onChange={(event) => onChange(event.target.value)} placeholder="https://.../logo.png" mb="8px" />
+      <Text color="textSubtle" fontSize="12px" bold textAlign="center" mb="8px">
+        --- OR ---
+      </Text>
       <Input type="file" accept="image/*" onChange={handleFileChange} />
     </LogoUploadBox>
   )
