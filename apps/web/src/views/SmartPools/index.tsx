@@ -710,9 +710,7 @@ const SmartStakeModal: React.FC<
           <Flex alignItems="center" style={{ gap: '8px' }}>
             <TokenPairLogo
               stakingToken={pool.stakingToken}
-              rewardToken={pool.rewardToken}
               stakingLogoURI={pool.stakingLogoURI}
-              rewardLogoURI={pool.rewardLogoURI}
               chainId={chainId}
               size={28}
             />
