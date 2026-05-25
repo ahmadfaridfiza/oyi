@@ -7,11 +7,11 @@ import {
   AutoRenewIcon,
   Box,
   Button,
+  CardViewIcon,
   Card,
   CardBody,
   CopyButton,
   Flex,
-  GridIcon,
   Heading,
   InjectedModalProps,
   Input,
@@ -1207,7 +1207,7 @@ const SmartPoolsList: React.FC<{ view: Exclude<SmartPoolsView, 'create'> }> = ({
       <Controls alignItems="center" justifyContent="space-between">
         <Flex alignItems="center" style={{ gap: '12px', flexWrap: 'wrap' }}>
           <ViewButton variant="text" $active={viewMode === 'card'} onClick={() => setViewMode('card')}>
-            <GridIcon color="currentColor" width="18px" />
+            <CardViewIcon color="currentColor" width="18px" />
           </ViewButton>
           <ViewButton variant="text" $active={viewMode === 'list'} onClick={() => setViewMode('list')}>
             <ListViewIcon color="currentColor" width="18px" />
