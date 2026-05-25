@@ -12,6 +12,7 @@ import {
   CardBody,
   CopyButton,
   Flex,
+  GithubIcon,
   Heading,
   InjectedModalProps,
   Input,
@@ -20,9 +21,12 @@ import {
   MessageText,
   Modal,
   Select,
+  Svg,
+  TelegramIcon,
   Text,
   TokenLogo,
   Toggle,
+  TwitterIcon,
   useModal,
   useToast,
 } from '@pancakeswap/uikit'
@@ -51,6 +55,10 @@ type SmartPoolInfo = {
   title: string
   stakingLogoURI: string
   rewardLogoURI: string
+  websiteURL: string
+  twitterURL: string
+  telegramURL: string
+  githubURL: string
   rewardPerSecond: BigNumber
   rewardRemaining: BigNumber
   totalReward: BigNumber
@@ -162,13 +170,65 @@ const LogoUploadBox = styled(Box)`
   padding: 12px;
 `
 
+const IconLink = styled.a`
+  align-items: center;
+  border: 1px solid ${({ theme }) => theme.colors.cardBorder};
+  border-radius: 999px;
+  color: ${({ theme }) => theme.colors.primary};
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+
+  &:hover {
+    opacity: 0.8;
+  }
+`
+
 const PercentButton = styled(Button)`
   flex: 1;
   min-width: 64px;
 `
 
-const getPoolTitle = (pool: SmartPoolInfo, stakingSymbol: string, rewardSymbol: string) =>
-  pool.title || `${rewardSymbol} ${stakingSymbol} Pool`
+const getPoolTitle = (rewardSymbol: string) => `Earn ${rewardSymbol}`
+
+const normalizeExternalUrl = (value?: string) => {
+  const trimmed = value?.trim()
+  if (!trimmed) return ''
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+}
+
+const WebIcon = ({ color = 'currentColor' }: { color?: string }) => (
+  <Svg viewBox="0 0 24 24" width="16px" color={color}>
+    <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm6.93 9h-3.08a15.2 15.2 0 00-1.2-5.02A8.03 8.03 0 0118.93 11zM12 4.04c.83 1.2 1.5 3.72 1.75 6.96h-3.5C10.5 7.76 11.17 5.24 12 4.04zM4.26 13h3.89c.12 1.82.43 3.53.9 4.92A8.04 8.04 0 014.26 13zm3.89-2H5.07a8.03 8.03 0 014.28-5.02A15.2 15.2 0 008.15 11zM12 19.96c-.83-1.2-1.5-3.72-1.75-6.96h3.5c-.25 3.24-.92 5.76-1.75 6.96zm2.95-2.04c.47-1.39.78-3.1.9-4.92h3.89a8.04 8.04 0 01-4.79 4.92z" />
+  </Svg>
+)
+
+const PoolSocialLinks: React.FC<{ pool: SmartPoolInfo }> = ({ pool }) => {
+  const links = [
+    { key: 'web', href: normalizeExternalUrl(pool.websiteURL), label: 'Website', icon: <WebIcon /> },
+    { key: 'twitter', href: normalizeExternalUrl(pool.twitterURL), label: 'Twitter', icon: <TwitterIcon color="currentColor" width="16px" /> },
+    {
+      key: 'telegram',
+      href: normalizeExternalUrl(pool.telegramURL),
+      label: 'Telegram',
+      icon: <TelegramIcon color="currentColor" width="16px" />,
+    },
+    { key: 'github', href: normalizeExternalUrl(pool.githubURL), label: 'Github', icon: <GithubIcon color="currentColor" width="16px" /> },
+  ].filter((link) => Boolean(link.href))
+
+  if (!links.length) return null
+
+  return (
+    <Flex mt="10px" style={{ gap: '8px', flexWrap: 'wrap' }}>
+      {links.map((link) => (
+        <IconLink key={link.key} href={link.href} target="_blank" rel="noreferrer" aria-label={link.label}>
+          {link.icon}
+        </IconLink>
+      ))}
+    </Flex>
+  )
+}
 
 const formatCompactAmount = (amount: BigNumber, decimals: number, precision = 4) => {
   const value = Number(formatUnits(amount, decimals))
@@ -341,6 +401,10 @@ const CreateSmartPool = () => {
   const [rewardTokenAddress, setRewardTokenAddress] = useState('')
   const [stakingLogoURI, setStakingLogoURI] = useState('')
   const [rewardLogoURI, setRewardLogoURI] = useState('')
+  const [websiteURL, setWebsiteURL] = useState('')
+  const [twitterURL, setTwitterURL] = useState('')
+  const [telegramURL, setTelegramURL] = useState('')
+  const [githubURL, setGithubURL] = useState('')
   const [rewardAmount, setRewardAmount] = useState('')
   const [rewardPerDay, setRewardPerDay] = useState('')
   const [isApprovingFee, setIsApprovingFee] = useState(false)
@@ -458,6 +522,10 @@ const CreateSmartPool = () => {
         '',
         stakingLogoURI.trim(),
         rewardLogoURI.trim(),
+        websiteURL.trim(),
+        twitterURL.trim(),
+        telegramURL.trim(),
+        githubURL.trim(),
         parsedRewardAmount,
         parsedRewardPerSecond,
       ])
@@ -498,8 +566,12 @@ const CreateSmartPool = () => {
     stakingLogoURI,
     stakingToken,
     t,
+    telegramURL,
     toastError,
     toastSuccess,
+    twitterURL,
+    websiteURL,
+    githubURL,
   ])
 
   return (
@@ -580,6 +652,36 @@ const CreateSmartPool = () => {
             ) : null}
           </Flex>
         ) : null}
+
+        <Flex mb="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
+          <Box width="100%" style={{ flex: 1 }}>
+            <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
+              {t('Website URL (Optional)')}
+            </Text>
+            <Input value={websiteURL} onChange={(event) => setWebsiteURL(event.target.value)} placeholder="https://example.com" />
+          </Box>
+          <Box width="100%" style={{ flex: 1 }}>
+            <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
+              {t('Twitter URL (Optional)')}
+            </Text>
+            <Input value={twitterURL} onChange={(event) => setTwitterURL(event.target.value)} placeholder="https://x.com/example" />
+          </Box>
+        </Flex>
+
+        <Flex mb="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
+          <Box width="100%" style={{ flex: 1 }}>
+            <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
+              {t('Telegram URL (Optional)')}
+            </Text>
+            <Input value={telegramURL} onChange={(event) => setTelegramURL(event.target.value)} placeholder="https://t.me/example" />
+          </Box>
+          <Box width="100%" style={{ flex: 1 }}>
+            <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
+              {t('Github URL (Optional)')}
+            </Text>
+            <Input value={githubURL} onChange={(event) => setGithubURL(event.target.value)} placeholder="https://github.com/example" />
+          </Box>
+        </Flex>
 
         <Flex mb="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
           <Box width="100%" style={{ flex: 1 }}>
@@ -824,7 +926,7 @@ const SmartPoolRow: React.FC<{
   const remainingDuration = pool.rewardPerSecond.gt(0) ? pool.rewardRemaining.div(pool.rewardPerSecond) : null
   const poolIsOpen = pool.active && pool.rewardRemaining.gt(0)
   const apr = getEstimatedApr(pool, stakingMetadata.decimals, rewardMetadata.decimals)
-  const title = getPoolTitle(pool, stakingMetadata.symbol, rewardMetadata.symbol)
+  const title = getPoolTitle(rewardMetadata.symbol)
 
   const refresh = useCallback(() => {
     onRefresh()
@@ -975,6 +1077,7 @@ const SmartPoolRow: React.FC<{
             </Text>
             <CopyButton width="16px" buttonColor="primary" text={pool.stakingToken} tooltipMessage={t('Address copied')} />
           </Flex>
+          <PoolSocialLinks pool={pool} />
           {account?.toLowerCase() === pool.creator.toLowerCase() ? (
             <Button
               mt="10px"

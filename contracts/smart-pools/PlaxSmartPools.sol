@@ -18,6 +18,10 @@ contract PlaxSmartPools {
         string title;
         string stakingLogoURI;
         string rewardLogoURI;
+        string websiteURL;
+        string twitterURL;
+        string telegramURL;
+        string githubURL;
         uint256 rewardPerSecond;
         uint256 rewardRemaining;
         uint256 totalReward;
@@ -54,7 +58,11 @@ contract PlaxSmartPools {
         uint256 rewardAmount,
         uint256 rewardPerSecond,
         string stakingLogoURI,
-        string rewardLogoURI
+        string rewardLogoURI,
+        string websiteURL,
+        string twitterURL,
+        string telegramURL,
+        string githubURL
     );
     event RewardAdded(uint256 indexed id, address indexed funder, uint256 amount);
     event Deposit(uint256 indexed id, address indexed user, uint256 amount);
@@ -89,6 +97,10 @@ contract PlaxSmartPools {
         string calldata title,
         string calldata stakingLogoURI,
         string calldata rewardLogoURI,
+        string calldata websiteURL,
+        string calldata twitterURL,
+        string calldata telegramURL,
+        string calldata githubURL,
         uint256 rewardAmount,
         uint256 rewardPerSecond
     ) external returns (uint256 poolId) {
@@ -109,6 +121,10 @@ contract PlaxSmartPools {
             title: title,
             stakingLogoURI: stakingLogoURI,
             rewardLogoURI: rewardLogoURI,
+            websiteURL: websiteURL,
+            twitterURL: twitterURL,
+            telegramURL: telegramURL,
+            githubURL: githubURL,
             rewardPerSecond: rewardPerSecond,
             rewardRemaining: rewardAmount,
             totalReward: rewardAmount,
@@ -120,7 +136,20 @@ contract PlaxSmartPools {
         });
         creatorPoolIds[msg.sender].push(poolId);
 
-        emit PoolCreated(poolId, msg.sender, stakingToken, rewardToken, rewardAmount, rewardPerSecond, stakingLogoURI, rewardLogoURI);
+        emit PoolCreated(
+            poolId,
+            msg.sender,
+            stakingToken,
+            rewardToken,
+            rewardAmount,
+            rewardPerSecond,
+            stakingLogoURI,
+            rewardLogoURI,
+            websiteURL,
+            twitterURL,
+            telegramURL,
+            githubURL
+        );
     }
 
     function addReward(uint256 poolId, uint256 amount) external {
