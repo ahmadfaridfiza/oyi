@@ -96,6 +96,10 @@ const config: (
           href: '/pools',
           supportChainIds: SUPPORT_ONLY_BSC,
         },
+        {
+          label: t('Smart Pools'),
+          href: '/smart-pools',
+        },
       ].map((item) => addMenuItemSupported(item, chainId)),
     },
     // {
