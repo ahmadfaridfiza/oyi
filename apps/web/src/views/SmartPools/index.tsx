@@ -1252,6 +1252,28 @@ const SmartPoolRow: React.FC<{
                   {formatCompactAmount(pool.rewardRemaining, rewardMetadata.decimals, 3)} {rewardMetadata.symbol}
                 </Text>
               </Flex>
+              <Box mt="14px">
+                <Flex alignItems="center" style={{ gap: '6px', flexWrap: 'wrap' }}>
+                  <LinkExternal href={getBlockExploreLink(smartPoolsAddress, 'address', chainId)} bold={false} small>
+                    {t('View Contract')}
+                  </LinkExternal>
+                </Flex>
+                <Flex alignItems="center" style={{ gap: '6px', flexWrap: 'wrap' }} mt="2px">
+                  <AddToWalletButton
+                    variant="text"
+                    p="0"
+                    height="auto"
+                    style={{ fontSize: '14px', fontWeight: 400, lineHeight: 'normal' }}
+                    marginTextBetweenLogo="4px"
+                    textOptions={AddToWalletTextOptions.TEXT}
+                    tokenAddress={pool.rewardToken}
+                    tokenSymbol={rewardMetadata.symbol}
+                    tokenDecimals={rewardMetadata.decimals}
+                    tokenLogo={pool.rewardLogoURI || getTokenLogoURLByAddress(pool.rewardToken, chainId) || ''}
+                  />
+                </Flex>
+                <PoolSocialLinks pool={pool} />
+              </Box>
             </Box>
           ) : null}
         </CardBody>
