@@ -241,6 +241,24 @@ const TokenPairLogo: React.FC<{
   )
 }
 
+const TokenPairLogoSingle: React.FC<{
+  stakingToken?: string
+  stakingLogoURI?: string
+  chainId?: number
+  size?: number
+}> = ({ stakingToken, stakingLogoURI, chainId, size = 48 }) => {
+  const stakingLogo = useMemo(
+    () => [stakingLogoURI, getTokenLogoURLByAddress(stakingToken, chainId)].filter(Boolean),
+    [chainId, stakingLogoURI, stakingToken],
+  )
+
+  return (
+    <TokenLogoWrap style={{ width: size, height: size }}>
+      <TokenLogo width={size} height={size} srcs={stakingLogo} alt="staking token logo" />
+    </TokenLogoWrap>
+  )
+}
+
 const LogoInput: React.FC<{
   label: string
   helper: string
@@ -708,7 +726,7 @@ const SmartStakeModal: React.FC<
         <Flex justifyContent="space-between" alignItems="center" mb="16px">
           <Text bold>{mode === 'stake' ? t('Stake') : t('Unstake')}:</Text>
           <Flex alignItems="center" style={{ gap: '8px' }}>
-            <TokenPairLogo
+            <TokenPairLogoSingle
               stakingToken={pool.stakingToken}
               stakingLogoURI={pool.stakingLogoURI}
               chainId={chainId}
