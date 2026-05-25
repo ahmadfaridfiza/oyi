@@ -323,7 +323,6 @@ const CreateSmartPool = () => {
   const [rewardTokenAddress, setRewardTokenAddress] = useState('')
   const [stakingLogoURI, setStakingLogoURI] = useState('')
   const [rewardLogoURI, setRewardLogoURI] = useState('')
-  const [title, setTitle] = useState('')
   const [rewardAmount, setRewardAmount] = useState('')
   const [rewardPerDay, setRewardPerDay] = useState('')
   const [isApprovingFee, setIsApprovingFee] = useState(false)
@@ -438,7 +437,7 @@ const CreateSmartPool = () => {
       const tx = await callWithGasPrice(smartPoolsContract, 'createPool', [
         stakingToken,
         rewardToken,
-        title.trim(),
+        '',
         stakingLogoURI.trim(),
         rewardLogoURI.trim(),
         parsedRewardAmount,
@@ -481,7 +480,6 @@ const CreateSmartPool = () => {
     stakingLogoURI,
     stakingToken,
     t,
-    title,
     toastError,
     toastSuccess,
   ])
@@ -544,35 +542,26 @@ const CreateSmartPool = () => {
           </Box>
         </Flex>
 
-        <Box my="16px">
-          <Text fontSize="12px" bold color="secondary" textTransform="uppercase" mb="8px">
-            {t('Pool Title')}
-          </Text>
-          <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t('Optional')} />
-        </Box>
-
-        <Flex mb="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
-          <LogoInput
-            label={t('Staking Token Logo')}
-            helper={
-              stakingDefaultLogo
-                ? t('PlaxSwap logo exists. Upload only if you want to override it.')
-                : t('Upload a small logo or paste an image URL.')
-            }
-            logoURI={stakingLogoURI}
-            onChange={setStakingLogoURI}
-          />
-          <LogoInput
-            label={t('Reward Token Logo')}
-            helper={
-              rewardDefaultLogo
-                ? t('PlaxSwap logo exists. Upload only if you want to override it.')
-                : t('Upload a small logo or paste an image URL.')
-            }
-            logoURI={rewardLogoURI}
-            onChange={setRewardLogoURI}
-          />
-        </Flex>
+        {!stakingDefaultLogo || !rewardDefaultLogo ? (
+          <Flex my="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
+            {!stakingDefaultLogo ? (
+              <LogoInput
+                label={t('Staking Token Logo')}
+                helper={t('Upload a small logo or paste an image URL.')}
+                logoURI={stakingLogoURI}
+                onChange={setStakingLogoURI}
+              />
+            ) : null}
+            {!rewardDefaultLogo ? (
+              <LogoInput
+                label={t('Reward Token Logo')}
+                helper={t('Upload a small logo or paste an image URL.')}
+                logoURI={rewardLogoURI}
+                onChange={setRewardLogoURI}
+              />
+            ) : null}
+          </Flex>
+        ) : null}
 
         <Flex mb="16px" flexDirection={['column', null, 'row']} style={{ gap: '16px' }}>
           <Box width="100%" style={{ flex: 1 }}>
