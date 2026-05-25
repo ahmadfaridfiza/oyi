@@ -10,12 +10,12 @@ import {
   CardViewIcon,
   Card,
   CardBody,
-  CopyButton,
   Flex,
   GithubIcon,
   Heading,
   InjectedModalProps,
   Input,
+  LinkExternal,
   ListViewIcon,
   Message,
   MessageText,
@@ -31,6 +31,7 @@ import {
   useToast,
 } from '@pancakeswap/uikit'
 import { bscTokens } from '@pancakeswap/tokens'
+import AddToWalletButton, { AddToWalletTextOptions } from 'components/AddToWallet/AddToWalletButton'
 import ConnectWalletButton from 'components/ConnectWalletButton'
 import { ToastDescriptionWithTx } from 'components/Toast'
 import { useActiveChainId } from 'hooks/useActiveChainId'
@@ -38,7 +39,7 @@ import { useCallWithGasPrice } from 'hooks/useCallWithGasPrice'
 import { useSmartPoolsContract, useTokenContract } from 'hooks/useContract'
 import useSWR from 'swr'
 import styled from 'styled-components'
-import { isAddress } from 'utils'
+import { getBlockExploreLink, isAddress } from 'utils'
 import { getSmartPoolsAddress } from 'utils/addressHelpers'
 import { getTokenLogoURLByAddress } from 'utils/getTokenLogoURL'
 import { useAccount } from 'wagmi'
@@ -1075,10 +1076,23 @@ const SmartPoolRow: React.FC<{
             </Text>
           </Flex>
           <Flex alignItems="center" style={{ gap: '6px', flexWrap: 'wrap' }}>
-            <Text color="primary" fontSize="13px">
+            <LinkExternal href={getBlockExploreLink(smartPoolsAddress, 'address', chainId)} bold={false} small>
               {t('View Contract')}
-            </Text>
-            <CopyButton width="16px" buttonColor="primary" text={pool.stakingToken} tooltipMessage={t('Address copied')} />
+            </LinkExternal>
+          </Flex>
+          <Flex alignItems="center" style={{ gap: '6px', flexWrap: 'wrap' }} mt="2px">
+            <AddToWalletButton
+              variant="text"
+              p="0"
+              height="auto"
+              style={{ fontSize: '14px', fontWeight: 400, lineHeight: 'normal' }}
+              marginTextBetweenLogo="4px"
+              textOptions={AddToWalletTextOptions.TEXT}
+              tokenAddress={pool.rewardToken}
+              tokenSymbol={rewardMetadata.symbol}
+              tokenDecimals={rewardMetadata.decimals}
+              tokenLogo={pool.rewardLogoURI || getTokenLogoURLByAddress(pool.rewardToken, chainId) || ''}
+            />
           </Flex>
           <PoolSocialLinks pool={pool} />
           {account?.toLowerCase() === pool.creator.toLowerCase() ? (
