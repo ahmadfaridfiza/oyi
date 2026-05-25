@@ -143,7 +143,7 @@ export default {
     80001: '',
   },
   smartPools: {
-    137: '0x91d238621d19F4f984Be6185ae360003464a5AaE',
+    137: '0x4B9c567F71ffEb96F53fa9F9ec3Fb6A346101d6d',
     80001: '',
   },
   dexSniper: {

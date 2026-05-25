@@ -16,6 +16,8 @@ contract PlaxSmartPools {
         address stakingToken;
         address rewardToken;
         string title;
+        string stakingLogoURI;
+        string rewardLogoURI;
         uint256 rewardPerSecond;
         uint256 rewardRemaining;
         uint256 totalReward;
@@ -50,7 +52,9 @@ contract PlaxSmartPools {
         address indexed stakingToken,
         address rewardToken,
         uint256 rewardAmount,
-        uint256 rewardPerSecond
+        uint256 rewardPerSecond,
+        string stakingLogoURI,
+        string rewardLogoURI
     );
     event RewardAdded(uint256 indexed id, address indexed funder, uint256 amount);
     event Deposit(uint256 indexed id, address indexed user, uint256 amount);
@@ -83,6 +87,8 @@ contract PlaxSmartPools {
         address stakingToken,
         address rewardToken,
         string calldata title,
+        string calldata stakingLogoURI,
+        string calldata rewardLogoURI,
         uint256 rewardAmount,
         uint256 rewardPerSecond
     ) external returns (uint256 poolId) {
@@ -101,6 +107,8 @@ contract PlaxSmartPools {
             stakingToken: stakingToken,
             rewardToken: rewardToken,
             title: title,
+            stakingLogoURI: stakingLogoURI,
+            rewardLogoURI: rewardLogoURI,
             rewardPerSecond: rewardPerSecond,
             rewardRemaining: rewardAmount,
             totalReward: rewardAmount,
@@ -112,7 +120,7 @@ contract PlaxSmartPools {
         });
         creatorPoolIds[msg.sender].push(poolId);
 
-        emit PoolCreated(poolId, msg.sender, stakingToken, rewardToken, rewardAmount, rewardPerSecond);
+        emit PoolCreated(poolId, msg.sender, stakingToken, rewardToken, rewardAmount, rewardPerSecond, stakingLogoURI, rewardLogoURI);
     }
 
     function addReward(uint256 poolId, uint256 amount) external {
