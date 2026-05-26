@@ -50,13 +50,6 @@ type FarmInfo = {
   creator: string
   stakingToken: string
   rewardToken: string
-  title: string
-  stakingLogoURI: string
-  rewardLogoURI: string
-  websiteURL: string
-  twitterURL: string
-  telegramURL: string
-  githubURL: string
   rewardPerSecond: BigNumber
   rewardRemaining: BigNumber
   totalReward: BigNumber
@@ -329,7 +322,7 @@ const StakeModal: React.FC<
         <Flex justifyContent="space-between" alignItems="center" mb="16px">
           <Text bold>{mode === 'stake' ? t('Stake') : t('Unstake')}:</Text>
           <Flex alignItems="center" style={{ gap: '8px' }}>
-            <LpTokenLogo stakingToken={farm.stakingToken} stakingLogoURI={farm.stakingLogoURI} size={28} />
+            <LpTokenLogo stakingToken={farm.stakingToken} size={28} />
             <Text bold>{stakingMetadata.symbol}</Text>
           </Flex>
         </Flex>
@@ -719,7 +712,7 @@ const FarmRow: React.FC<{
     if (!smartFarmsContract) return
     setPendingAction('close')
     try {
-      const tx = await callWithGasPrice(smartFarmsContract, 'closePool', [farm.id])
+      const tx = await callWithGasPrice(smartFarmsContract, 'closeFarm', [farm.id])
       const receipt = await tx.wait()
       toastSuccess(t('Farm Closed'), <ToastDescriptionWithTx txHash={receipt.transactionHash} />)
       refresh()
@@ -747,8 +740,6 @@ const FarmRow: React.FC<{
             <LpPairLogo
               stakingToken={farm.stakingToken}
               rewardToken={farm.rewardToken}
-              stakingLogoURI={farm.stakingLogoURI}
-              rewardLogoURI={farm.rewardLogoURI}
               chainId={chainId}
             />
           </Flex>
@@ -834,8 +825,6 @@ const FarmRow: React.FC<{
           <LpPairLogo
             stakingToken={farm.stakingToken}
             rewardToken={farm.rewardToken}
-            stakingLogoURI={farm.stakingLogoURI}
-            rewardLogoURI={farm.rewardLogoURI}
             chainId={chainId}
           />
           <Box>
@@ -952,7 +941,15 @@ const SmartFarmsList: React.FC = () => {
 
   const { data: farms, mutate } = useSWR(
     smartFarmsContract && hasAddress ? ['smartFarmsList', smartFarmsAddress] : null,
-    () => smartFarmsContract.getPools(0, POOLS_PAGE_SIZE) as Promise<FarmInfo[]>,
+    async () => {
+      const raw = (await smartFarmsContract.getFarms(0, POOLS_PAGE_SIZE)) as any[]
+      const PLAX = '0x328801B0b580eAdd83eA841638865eA41Dc6fb25'
+      return raw.map((f: any) => ({
+        ...f,
+        stakingToken: f.lpToken,
+        rewardToken: PLAX,
+      })) as FarmInfo[]
+    },
     { refreshInterval: 15000 },
   )
 
