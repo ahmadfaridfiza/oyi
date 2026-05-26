@@ -100,6 +100,10 @@ const config: (
           label: t('Smart Pools'),
           href: '/smart-pools',
         },
+        {
+          label: t('Smart Farms'),
+          href: '/smart-farms',
+        },
       ].map((item) => addMenuItemSupported(item, chainId)),
     },
     // {
