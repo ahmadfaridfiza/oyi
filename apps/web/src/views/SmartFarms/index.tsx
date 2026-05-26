@@ -739,7 +739,6 @@ const FarmRow: React.FC<{
             </Box>
             <LpPairLogo
               stakingToken={farm.stakingToken}
-              rewardToken={farm.rewardToken}
               chainId={chainId}
             />
           </Flex>
@@ -824,7 +823,6 @@ const FarmRow: React.FC<{
         <Flex alignItems="center" minWidth="180px" style={{ gap: '12px' }}>
           <LpPairLogo
             stakingToken={farm.stakingToken}
-            rewardToken={farm.rewardToken}
             chainId={chainId}
           />
           <Box>
