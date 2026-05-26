@@ -473,16 +473,8 @@ const CreateFarm = () => {
     setIsCreating(true)
     setCreatedFarmId('')
     try {
-      const tx = await callWithGasPrice(smartFarmsContract, 'createPool', [
+      const tx = await callWithGasPrice(smartFarmsContract, 'createFarm', [
         lpToken,
-        plaxAddress,
-        `Earn PLAX`,
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
         parsedRewardAmount,
         parsedRewardPerSecond,
       ])
@@ -495,7 +487,7 @@ const CreateFarm = () => {
             return null
           }
         })
-        .find((event) => event?.name === 'PoolCreated')
+        .find((event) => event?.name === 'FarmCreated')
       if (createdEvent?.args?.id) {
         setCreatedFarmId(createdEvent.args.id.toString())
       }
@@ -508,7 +500,7 @@ const CreateFarm = () => {
     } finally {
       setIsCreating(false)
     }
-  }, [callWithGasPrice, canCreate, parsedRewardAmount, parsedRewardPerSecond, plaxAddress, refreshFeeAllowance, refreshRewardAllowance, lpToken, smartFarmsContract, t, toastError, toastSuccess])
+  }, [callWithGasPrice, canCreate, parsedRewardAmount, parsedRewardPerSecond, refreshFeeAllowance, refreshRewardAllowance, lpToken, smartFarmsContract, t, toastError, toastSuccess])
 
   return (
     <Card>
