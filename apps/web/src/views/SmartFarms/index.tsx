@@ -317,7 +317,7 @@ const StakeModal: React.FC<
   }, [callWithGasPrice, mode, onDismiss, onRefresh, parsedAmount, farm.id, smartFarmsContract, t, toastError, toastSuccess])
 
   return (
-    <Modal title={mode === 'stake' ? t('Stake LP Tokens') : t('Unstake LP Tokens')} onDismiss={onDismiss}>
+    <Modal title={mode === 'stake' ? t('Stake LP') : t('Unstake LP')} onDismiss={onDismiss}>
       <Box width={['100%', '100%', '360px']}>
         <Flex justifyContent="space-between" alignItems="center" mb="16px">
           <Text bold>{mode === 'stake' ? t('Stake') : t('Unstake')}:</Text>
@@ -763,7 +763,7 @@ const FarmRow: React.FC<{
             </Button>
           </Flex>
           <Text color="secondary" fontSize="12px" bold>
-            {t('Staked LP')}
+            {t('Staked')} {stakingMetadata.symbol}
           </Text>
           {account && userAmount.gt(0) ? (
             <Flex justifyContent="space-between" alignItems="center" style={{ gap: '8px' }}>
@@ -775,7 +775,7 @@ const FarmRow: React.FC<{
             </Flex>
           ) : account ? (
             <Button width="100%" onClick={onPresentStakeModal} disabled={!farmIsOpen} scale="sm">
-              {farmIsOpen ? t('Stake LP') : t('Finished')}
+              {farmIsOpen ? t('Stake') : t('Finished')}
             </Button>
           ) : (
             <ConnectWalletButton width="100%" scale="sm" />
@@ -792,7 +792,7 @@ const FarmRow: React.FC<{
             <Box mt="16px">
               <Flex justifyContent="space-between" mb="6px">
                 <Text color="textSubtle">{t('Total staked')}</Text>
-                <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} LP</Text>
+                <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} {stakingMetadata.symbol}</Text>
               </Flex>
               <Flex justifyContent="space-between" mb="6px">
                 <Text color="textSubtle">{t('Reward left')}</Text>
@@ -827,7 +827,7 @@ const FarmRow: React.FC<{
           />
           <Box>
             <Text bold>{t('Earn')} {rewardMetadata.symbol}</Text>
-            <Text color="textSubtle" fontSize="12px">{t('Stake')} LP</Text>
+            <Text color="textSubtle" fontSize="12px">{t('Stake')} {stakingMetadata.symbol}</Text>
           </Box>
         </Flex>
         <StatBox>
@@ -837,7 +837,7 @@ const FarmRow: React.FC<{
         </StatBox>
         <StatBox>
           <Text color="textSubtle" fontSize="12px">{t('Total staked')}</Text>
-          <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} LP</Text>
+          <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} {stakingMetadata.symbol}</Text>
         </StatBox>
         <StatBox>
           <Text color="textSubtle" fontSize="12px">{t('APR')}</Text>
@@ -896,7 +896,7 @@ const FarmRow: React.FC<{
             </ActionBox>
             <ActionBox width="100%">
               <Text color="secondary" fontSize="12px" bold textTransform="uppercase" mb="12px">
-                {userAmount.gt(0) ? `${t('LP Staked')}` : `${t('Stake LP')}`}
+                {userAmount.gt(0) ? `${stakingMetadata.symbol} ${t('Staked')}` : `${t('Stake')}`}
               </Text>
               {userAmount.gt(0) ? (
                 <Flex justifyContent="space-between" alignItems="center" style={{ gap: '12px' }}>
@@ -913,7 +913,7 @@ const FarmRow: React.FC<{
                 <ConnectWalletButton width="100%" />
               ) : (
                 <Button width="100%" variant="secondary" onClick={onPresentStakeModal} disabled={!farmIsOpen}>
-                  {t('Stake LP')}
+                  {t('Stake')} {stakingMetadata.symbol}
                 </Button>
               )}
             </ActionBox>
