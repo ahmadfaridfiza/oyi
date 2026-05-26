@@ -34,6 +34,12 @@ const DropDownListContainer = styled.div`
   ${({ theme }) => theme.mediaQueries.sm} {
     min-width: 168px;
   }
+
+  &[data-open="true"] {
+    height: auto;
+    max-height: 300px;
+    overflow-y: auto;
+  }
 `;
 
 const DropDownContainer = styled(Box)<{ isOpen: boolean }>`
@@ -158,7 +164,7 @@ const Select: React.FunctionComponent<React.PropsWithChildren<SelectProps>> = ({
         </Text>
       </DropDownHeader>
       <ArrowDropDownIcon color="text" onClick={toggling} />
-      <DropDownListContainer>
+      <DropDownListContainer data-open={isOpen}>
         <DropDownList>
           {options.map((option, index) =>
             placeHolderText || index !== selectedOptionIndex ? (
