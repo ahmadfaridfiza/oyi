@@ -32,6 +32,7 @@ import { ToastDescriptionWithTx } from 'components/Toast'
 import { useActiveChainId } from 'hooks/useActiveChainId'
 import { useCallWithGasPrice } from 'hooks/useCallWithGasPrice'
 import { useSmartFarmsContract, useTokenContract } from 'hooks/useContract'
+import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
 import { useAvailableLpPairs } from 'hooks/useAvailableLpPairs'
 
 import useSWR from 'swr'
@@ -201,6 +202,34 @@ const useTokenMetadata = (address?: string): TokenMetadata => {
   return data ?? { decimals: 18, symbol: 'TOKEN', name: 'Token' }
 }
 
+const NATIVE_LIKE = [
+  '0x0000000000000000000000000000000000001010',
+  '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
+]
+
+const useLpPairName = (lpAddress?: string): string => {
+  const provider = useProviderOrSigner(false)
+  const { data } = useSWR(
+    provider && lpAddress ? ['lpPairName', lpAddress] : null,
+    async () => {
+      const { Contract } = await import('@ethersproject/contracts')
+      const pAbi = await import('config/abi/pancakePair.json')
+      const eAbi = await import('config/abi/erc20.json')
+      const pc = new Contract(lpAddress, pAbi as any, provider)
+      const [token0, token1] = await Promise.all([pc.token0(), pc.token1()])
+      const t0c = new Contract(token0, eAbi as any, provider)
+      const t1c = new Contract(token1, eAbi as any, provider)
+      const [s0, s1] = await Promise.all([
+        NATIVE_LIKE.includes(String(token0).toLowerCase()) ? 'POL' : String(await t0c.symbol()),
+        NATIVE_LIKE.includes(String(token1).toLowerCase()) ? 'POL' : String(await t1c.symbol()),
+      ])
+      return `${s0}-${s1} LP`
+    },
+    { dedupingInterval: 600000 },
+  )
+  return data ?? ''
+}
+
 const LpPairLogo: React.FC<{
   stakingToken?: string
   rewardToken?: string
@@ -259,8 +288,10 @@ const StakeModal: React.FC<
   const { t } = useTranslation()
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
+  const { chainId } = useActiveChainId()
   const smartFarmsContract = useSmartFarmsContract()
   const stakingTokenContract = useTokenContract(farm.stakingToken)
+  const lpPairName = useLpPairName(farm.stakingToken)
   const [amount, setAmount] = useState('')
   const [pendingAction, setPendingAction] = useState('')
 
@@ -323,7 +354,7 @@ const StakeModal: React.FC<
           <Text bold>{mode === 'stake' ? t('Stake') : t('Unstake')}:</Text>
           <Flex alignItems="center" style={{ gap: '8px' }}>
             <LpTokenLogo stakingToken={farm.stakingToken} size={28} />
-            <Text bold>{stakingMetadata.symbol}</Text>
+            <Text bold>{lpPairName || stakingMetadata.symbol}</Text>
           </Flex>
         </Flex>
         <Input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.0" />
@@ -622,6 +653,7 @@ const FarmRow: React.FC<{
   const stakingTokenContract = useTokenContract(farm.stakingToken)
   const stakingMetadata = useTokenMetadata(farm.stakingToken)
   const rewardMetadata = useTokenMetadata(farm.rewardToken)
+  const lpPairName = useLpPairName(farm.stakingToken)
   const [expanded, setExpanded] = useState(initialExpanded)
   const [pendingAction, setPendingAction] = useState('')
 
@@ -734,7 +766,7 @@ const FarmRow: React.FC<{
                 {t('Earn')} {rewardMetadata.symbol}
               </Heading>
               <Text color="textSubtle">
-                {t('Stake')} {stakingMetadata.symbol}
+                {t('Stake')} {lpPairName || stakingMetadata.symbol}
               </Text>
             </Box>
             <LpPairLogo
@@ -763,7 +795,7 @@ const FarmRow: React.FC<{
             </Button>
           </Flex>
           <Text color="secondary" fontSize="12px" bold>
-            {t('Staked')} {stakingMetadata.symbol}
+            {t('Staked')} {lpPairName || stakingMetadata.symbol}
           </Text>
           {account && userAmount.gt(0) ? (
             <Flex justifyContent="space-between" alignItems="center" style={{ gap: '8px' }}>
@@ -792,7 +824,7 @@ const FarmRow: React.FC<{
             <Box mt="16px">
               <Flex justifyContent="space-between" mb="6px">
                 <Text color="textSubtle">{t('Total staked')}</Text>
-                <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} {stakingMetadata.symbol}</Text>
+                <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} {lpPairName || stakingMetadata.symbol}</Text>
               </Flex>
               <Flex justifyContent="space-between" mb="6px">
                 <Text color="textSubtle">{t('Reward left')}</Text>
@@ -827,7 +859,7 @@ const FarmRow: React.FC<{
           />
           <Box>
             <Text bold>{t('Earn')} {rewardMetadata.symbol}</Text>
-            <Text color="textSubtle" fontSize="12px">{t('Stake')} {stakingMetadata.symbol}</Text>
+            <Text color="textSubtle" fontSize="12px">{t('Stake')} {lpPairName || stakingMetadata.symbol}</Text>
           </Box>
         </Flex>
         <StatBox>
@@ -837,7 +869,7 @@ const FarmRow: React.FC<{
         </StatBox>
         <StatBox>
           <Text color="textSubtle" fontSize="12px">{t('Total staked')}</Text>
-          <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} {stakingMetadata.symbol}</Text>
+          <Text bold>{formatCompactAmount(farm.totalStaked, stakingMetadata.decimals, 3)} {lpPairName || stakingMetadata.symbol}</Text>
         </StatBox>
         <StatBox>
           <Text color="textSubtle" fontSize="12px">{t('APR')}</Text>
@@ -896,7 +928,7 @@ const FarmRow: React.FC<{
             </ActionBox>
             <ActionBox width="100%">
               <Text color="secondary" fontSize="12px" bold textTransform="uppercase" mb="12px">
-                {userAmount.gt(0) ? `${stakingMetadata.symbol} ${t('Staked')}` : `${t('Stake')}`}
+                {userAmount.gt(0) ? `${lpPairName || stakingMetadata.symbol} ${t('Staked')}` : `${t('Stake')}`}
               </Text>
               {userAmount.gt(0) ? (
                 <Flex justifyContent="space-between" alignItems="center" style={{ gap: '12px' }}>
@@ -913,7 +945,7 @@ const FarmRow: React.FC<{
                 <ConnectWalletButton width="100%" />
               ) : (
                 <Button width="100%" variant="secondary" onClick={onPresentStakeModal} disabled={!farmIsOpen}>
-                  {t('Stake')} {stakingMetadata.symbol}
+                {t('Stake')} {lpPairName || stakingMetadata.symbol}
                 </Button>
               )}
             </ActionBox>
