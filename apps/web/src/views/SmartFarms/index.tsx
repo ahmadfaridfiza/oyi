@@ -232,26 +232,17 @@ const useLpPairName = (lpAddress?: string): string => {
 
 const LpPairLogo: React.FC<{
   stakingToken?: string
-  rewardToken?: string
   stakingLogoURI?: string
-  rewardLogoURI?: string
   chainId?: number
   size?: number
-}> = ({ stakingToken, rewardToken, stakingLogoURI, rewardLogoURI, chainId, size = 48 }) => {
+}> = ({ stakingToken, stakingLogoURI, chainId, size = 28 }) => {
   const stakingLogo = useMemo(
     () => [stakingLogoURI, getTokenLogoURLByAddress(stakingToken, chainId)].filter(Boolean),
     [chainId, stakingLogoURI, stakingToken],
   )
-  const rewardLogo = useMemo(
-    () => [rewardLogoURI, getTokenLogoURLByAddress(rewardToken, chainId)].filter(Boolean),
-    [chainId, rewardLogoURI, rewardToken],
-  )
   return (
     <TokenLogoWrap style={{ width: size, height: size }}>
       <TokenLogo width={size} height={size} srcs={stakingLogo} alt="LP token logo" />
-      <RewardLogoBadge>
-        <TokenLogo width={24} height={24} srcs={rewardLogo} alt="reward token logo" />
-      </RewardLogoBadge>
     </TokenLogoWrap>
   )
 }
@@ -353,7 +344,10 @@ const StakeModal: React.FC<
         <Flex justifyContent="space-between" alignItems="center" mb="16px">
           <Text bold>{mode === 'stake' ? t('Stake') : t('Unstake')}:</Text>
           <Flex alignItems="center" style={{ gap: '8px' }}>
-            <LpTokenLogo stakingToken={farm.stakingToken} size={28} />
+            <LpPairLogo
+              stakingToken={farm.stakingToken}
+              chainId={chainId}
+            />
             <Text bold>{lpPairName || stakingMetadata.symbol}</Text>
           </Flex>
         </Flex>
