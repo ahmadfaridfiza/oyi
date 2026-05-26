@@ -20,7 +20,7 @@ interface IPair {
 
 contract PlaxSmartFarms {
     uint256 private constant ACC_REWARD_PRECISION = 1e24;
-    uint256 public constant CREATE_FEE = 10 * 1e18;
+    uint256 public createFee;
 
     struct FarmInfo {
         uint256 id;
@@ -59,6 +59,8 @@ contract PlaxSmartFarms {
     event Harvest(uint256 indexed id, address indexed user, uint256 amount);
     event EmergencyWithdraw(uint256 indexed id, address indexed user, uint256 amount);
     event FarmClosed(uint256 indexed id, uint256 remainingReward);
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
+    event FeeReceiverUpdated(address indexed oldReceiver, address indexed newReceiver);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     modifier onlyOwner() {
@@ -66,11 +68,13 @@ contract PlaxSmartFarms {
         _;
     }
 
-    constructor(address plaxToken_, address feeReceiver_) {
+    constructor(address plaxToken_, address feeReceiver_, uint256 createFee_) {
         require(plaxToken_ != address(0), "Invalid PLAX");
         require(feeReceiver_ != address(0), "Invalid receiver");
+        require(createFee_ > 0, "Invalid fee");
         plaxToken = IERC20(plaxToken_);
         feeReceiver = feeReceiver_;
+        createFee = createFee_;
         owner = msg.sender;
         emit OwnershipTransferred(address(0), msg.sender);
     }
@@ -82,7 +86,7 @@ contract PlaxSmartFarms {
         require(rewardPerSecond <= rewardAmount, "Rate exceeds total");
 
         require(IPair(lpToken).totalSupply() > 0, "Invalid LP pair");
-        require(plaxToken.transferFrom(msg.sender, feeReceiver, CREATE_FEE), "Fee failed");
+        require(plaxToken.transferFrom(msg.sender, feeReceiver, createFee), "Fee failed");
         require(plaxToken.transferFrom(msg.sender, address(this), rewardAmount), "Reward failed");
 
         farmId = ++farmCount;
@@ -255,6 +259,18 @@ contract PlaxSmartFarms {
             result[i] = farms[ids[ids.length - 1 - offset - i]];
         }
         return result;
+    }
+
+    function setCreateFee(uint256 newFee) external onlyOwner {
+        require(newFee > 0, "Invalid fee");
+        emit FeeUpdated(createFee, newFee);
+        createFee = newFee;
+    }
+
+    function setFeeReceiver(address newReceiver) external onlyOwner {
+        require(newReceiver != address(0), "Invalid receiver");
+        emit FeeReceiverUpdated(feeReceiver, newReceiver);
+        feeReceiver = newReceiver;
     }
 
     function transferOwnership(address newOwner) external onlyOwner {

@@ -387,6 +387,8 @@ const CreateFarm = () => {
   const { options: lpPairOptions, loading: lpLoading } = useAvailableLpPairs()
 
   const [lpAddress, setLpAddress] = useState('')
+  const [selectedLpLabel, setSelectedLpLabel] = useState('')
+  const [useManualLp, setUseManualLp] = useState(false)
   const [rewardAmount, setRewardAmount] = useState('')
   const [rewardPerDay, setRewardPerDay] = useState('')
   const [isApprovingFee, setIsApprovingFee] = useState(false)
@@ -524,17 +526,36 @@ const CreateFarm = () => {
         ) : null}
 
         <Box mb="16px">
-          <SectionLabel>{t('LP Pair')}</SectionLabel>
-          <Select
-            options={[
-              { label: lpLoading ? t('Loading pairs...') : t('Select LP pair...'), value: '' },
-              ...lpPairOptions,
-            ]}
-            onOptionChange={(option) => setLpAddress(option.value)}
-          />
+          <Flex justifyContent="space-between" alignItems="center" mb="8px">
+            <SectionLabel style={{ marginBottom: 0 }}>{t('LP Pair')}</SectionLabel>
+            <Button scale="xs" variant="text" onClick={() => setUseManualLp((c) => !c)}>
+              {useManualLp ? t('Select from list') : t('Enter address manually')}
+            </Button>
+          </Flex>
+          {useManualLp ? (
+            <Input
+              value={lpAddress}
+              onChange={(event) => {
+                setLpAddress(event.target.value)
+                setSelectedLpLabel('')
+              }}
+              placeholder="0x... (LP token address)"
+            />
+          ) : (
+            <Select
+              options={[
+                { label: lpLoading ? t('Loading pairs...') : t('Select LP pair...'), value: '' },
+                ...lpPairOptions,
+              ]}
+              onOptionChange={(option) => {
+                setLpAddress(option.value)
+                setSelectedLpLabel(option.label)
+              }}
+            />
+          )}
           {lpToken ? (
             <Text color="textSubtle" fontSize="12px" mt="4px">
-              {t('Selected: %name% (%symbol%)', { name: lpMetadata.name, symbol: lpMetadata.symbol })}
+              {selectedLpLabel || `${lpMetadata.name} (${lpMetadata.symbol})`}
             </Text>
           ) : null}
         </Box>
