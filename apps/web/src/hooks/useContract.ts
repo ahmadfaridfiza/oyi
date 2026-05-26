@@ -13,6 +13,7 @@ import zapAbi from 'config/abi/zap.json'
 import tokenDeployerAbi from 'config/abi/tokenDeployer.json'
 import tokenLockerAbi from 'config/abi/tokenLocker.json'
 import smartPoolsAbi from 'config/abi/smartPools.json'
+import smartFarmsAbi from 'config/abi/smartFarms.json'
 import dexSniperAbi from 'config/abi/dexSniper.json'
 import newPairSniperAbi from 'config/abi/newPairSniper.json'
 import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
@@ -22,6 +23,7 @@ import {
   getNewPairSniperAddress,
   getPredictionsV1Address,
   getSmartPoolsAddress,
+  getSmartFarmsAddress,
   getTokenDeployerAddress,
   getDexSniperAddress,
   getTokenLockerAddress,
@@ -380,6 +382,11 @@ export function useTokenLockerContract(withSignerIfPossible = true) {
 export function useSmartPoolsContract(withSignerIfPossible = true) {
   const { chainId } = useActiveChainId()
   return useContract(getSmartPoolsAddress(chainId), smartPoolsAbi, withSignerIfPossible)
+}
+
+export function useSmartFarmsContract(withSignerIfPossible = true) {
+  const { chainId } = useActiveChainId()
+  return useContract(getSmartFarmsAddress(chainId), smartFarmsAbi, withSignerIfPossible)
 }
 
 export function useDexSniperContract(withSignerIfPossible = true) {

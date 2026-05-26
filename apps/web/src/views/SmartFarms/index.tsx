@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { BigNumber } from '@ethersproject/bignumber'
 import { MaxUint256, Zero } from '@ethersproject/constants'
 import { formatUnits, parseUnits } from '@ethersproject/units'
@@ -31,11 +31,13 @@ import ConnectWalletButton from 'components/ConnectWalletButton'
 import { ToastDescriptionWithTx } from 'components/Toast'
 import { useActiveChainId } from 'hooks/useActiveChainId'
 import { useCallWithGasPrice } from 'hooks/useCallWithGasPrice'
-import { useSmartPoolsContract, useTokenContract } from 'hooks/useContract'
+import { useSmartFarmsContract, useTokenContract } from 'hooks/useContract'
+import { useAvailableLpPairs } from 'hooks/useAvailableLpPairs'
+
 import useSWR from 'swr'
 import styled from 'styled-components'
 import { getBlockExploreLink, isAddress } from 'utils'
-import { getSmartPoolsAddress } from 'utils/addressHelpers'
+import { getSmartFarmsAddress } from 'utils/addressHelpers'
 import { getTokenLogoURLByAddress } from 'utils/getTokenLogoURL'
 import { useAccount } from 'wagmi'
 import { useRouter } from 'next/router'
@@ -264,7 +266,7 @@ const StakeModal: React.FC<
   const { t } = useTranslation()
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
-  const smartPoolsContract = useSmartPoolsContract()
+  const smartFarmsContract = useSmartFarmsContract()
   const stakingTokenContract = useTokenContract(farm.stakingToken)
   const [amount, setAmount] = useState('')
   const [pendingAction, setPendingAction] = useState('')
@@ -305,10 +307,10 @@ const StakeModal: React.FC<
   }, [callWithGasPrice, onRefresh, smartFarmsAddress, stakingTokenContract, t, toastError, toastSuccess])
 
   const handleConfirm = useCallback(async () => {
-    if (!smartPoolsContract || !parsedAmount?.gt(0)) return
+    if (!smartFarmsContract || !parsedAmount?.gt(0)) return
     setPendingAction(mode)
     try {
-      const tx = await callWithGasPrice(smartPoolsContract, mode === 'stake' ? 'deposit' : 'withdraw', [farm.id, parsedAmount])
+      const tx = await callWithGasPrice(smartFarmsContract, mode === 'stake' ? 'deposit' : 'withdraw', [farm.id, parsedAmount])
       const receipt = await tx.wait()
       toastSuccess(mode === 'stake' ? t('Staked') : t('Unstaked'), <ToastDescriptionWithTx txHash={receipt.transactionHash} />)
       onRefresh()
@@ -319,7 +321,7 @@ const StakeModal: React.FC<
     } finally {
       setPendingAction('')
     }
-  }, [callWithGasPrice, mode, onDismiss, onRefresh, parsedAmount, farm.id, smartPoolsContract, t, toastError, toastSuccess])
+  }, [callWithGasPrice, mode, onDismiss, onRefresh, parsedAmount, farm.id, smartFarmsContract, t, toastError, toastSuccess])
 
   return (
     <Modal title={mode === 'stake' ? t('Stake LP Tokens') : t('Unstake LP Tokens')} onDismiss={onDismiss}>
@@ -378,10 +380,11 @@ const CreateFarm = () => {
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
 
-  const smartFarmsAddress = useMemo(() => getSmartPoolsAddress(chainId), [chainId])
+  const smartFarmsAddress = useMemo(() => getSmartFarmsAddress(chainId), [chainId])
   const hasAddress = Boolean(smartFarmsAddress)
-  const smartPoolsContract = useSmartPoolsContract()
+  const smartFarmsContract = useSmartFarmsContract()
   const plaxToken = { address: '0x328801B0b580eAdd83eA841638865eA41Dc6fb25', symbol: 'PLAX', decimals: 18 }
+  const { options: lpPairOptions, loading: lpLoading } = useAvailableLpPairs()
 
   const [lpAddress, setLpAddress] = useState('')
   const [rewardAmount, setRewardAmount] = useState('')
@@ -391,7 +394,7 @@ const CreateFarm = () => {
   const [isCreating, setIsCreating] = useState(false)
   const [createdFarmId, setCreatedFarmId] = useState('')
 
-  const lpToken = useMemo(() => isAddress(lpAddress), [lpAddress])
+  const lpToken = useMemo(() => isAddress(lpAddress), [lpAddress]) || lpAddress || undefined
   const lpMetadata = useTokenMetadata(lpToken || undefined)
   const plaxContract = useTokenContract(plaxToken.address)
   const plaxAddress = plaxToken.address
@@ -429,7 +432,7 @@ const CreateFarm = () => {
   const estimatedDuration = parsedRewardAmount && parsedRewardPerSecond?.gt(0) ? parsedRewardAmount.div(parsedRewardPerSecond) : null
 
   const canCreate =
-    Boolean(account) && Boolean(smartPoolsContract) && hasAddress && Boolean(lpToken) && parsedRewardAmount?.gt(0) && parsedRewardPerSecond?.gt(0)
+    Boolean(account) && Boolean(smartFarmsContract) && hasAddress && Boolean(lpToken) && parsedRewardAmount?.gt(0) && parsedRewardPerSecond?.gt(0)
 
   const handleApproveFee = useCallback(async () => {
     if (!plaxContract || !hasAddress) return
@@ -464,11 +467,11 @@ const CreateFarm = () => {
   }, [callWithGasPrice, hasAddress, plaxContract, refreshRewardAllowance, smartFarmsAddress, t, toastError, toastSuccess])
 
   const handleCreateFarm = useCallback(async () => {
-    if (!smartPoolsContract || !lpToken || !parsedRewardAmount || !parsedRewardPerSecond || !canCreate) return
+    if (!smartFarmsContract || !lpToken || !parsedRewardAmount || !parsedRewardPerSecond || !canCreate) return
     setIsCreating(true)
     setCreatedFarmId('')
     try {
-      const tx = await callWithGasPrice(smartPoolsContract, 'createPool', [
+      const tx = await callWithGasPrice(smartFarmsContract, 'createPool', [
         lpToken,
         plaxAddress,
         `Earn PLAX`,
@@ -485,7 +488,7 @@ const CreateFarm = () => {
       const createdEvent = receipt.logs
         .map((log) => {
           try {
-            return smartPoolsContract.interface.parseLog(log)
+            return smartFarmsContract.interface.parseLog(log)
           } catch {
             return null
           }
@@ -503,7 +506,7 @@ const CreateFarm = () => {
     } finally {
       setIsCreating(false)
     }
-  }, [callWithGasPrice, canCreate, parsedRewardAmount, parsedRewardPerSecond, plaxAddress, refreshFeeAllowance, refreshRewardAllowance, lpToken, smartPoolsContract, t, toastError, toastSuccess])
+  }, [callWithGasPrice, canCreate, parsedRewardAmount, parsedRewardPerSecond, plaxAddress, refreshFeeAllowance, refreshRewardAllowance, lpToken, smartFarmsContract, t, toastError, toastSuccess])
 
   return (
     <Card>
@@ -521,19 +524,17 @@ const CreateFarm = () => {
         ) : null}
 
         <Box mb="16px">
-          <SectionLabel>{t('LP Token Address')}</SectionLabel>
-          <Input
-            value={lpAddress}
-            onChange={(event) => setLpAddress(event.target.value)}
-            placeholder="0x... (PancakeSwap LP token address)"
+          <SectionLabel>{t('LP Pair')}</SectionLabel>
+          <Select
+            options={[
+              { label: lpLoading ? t('Loading pairs...') : t('Select LP pair...'), value: '' },
+              ...lpPairOptions,
+            ]}
+            onOptionChange={(option) => setLpAddress(option.value)}
           />
           {lpToken ? (
             <Text color="textSubtle" fontSize="12px" mt="4px">
-              {t('Detected: %name% (%symbol%, %decimals% decimals)', {
-                name: lpMetadata.name,
-                symbol: lpMetadata.symbol,
-                decimals: lpMetadata.decimals,
-              })}
+              {t('Selected: %name% (%symbol%)', { name: lpMetadata.name, symbol: lpMetadata.symbol })}
             </Text>
           ) : null}
         </Box>
@@ -611,7 +612,7 @@ const FarmRow: React.FC<{
   const { callWithGasPrice } = useCallWithGasPrice()
   const { toastError, toastSuccess } = useToast()
   const { chainId } = useActiveChainId()
-  const smartPoolsContract = useSmartPoolsContract()
+  const smartFarmsContract = useSmartFarmsContract()
   const stakingTokenContract = useTokenContract(farm.stakingToken)
   const stakingMetadata = useTokenMetadata(farm.stakingToken)
   const rewardMetadata = useTokenMetadata(farm.rewardToken)
@@ -619,13 +620,13 @@ const FarmRow: React.FC<{
   const [pendingAction, setPendingAction] = useState('')
 
   const { data: userInfo, mutate: refreshUserInfo } = useSWR(
-    account && smartPoolsContract ? ['smartFarmsUserInfo', farm.id.toString(), account] : null,
-    () => smartPoolsContract.userInfo(farm.id, account) as Promise<UserFarmInfo>,
+    account && smartFarmsContract ? ['smartFarmsUserInfo', farm.id.toString(), account] : null,
+    () => smartFarmsContract.userInfo(farm.id, account) as Promise<UserFarmInfo>,
   )
 
   const { data: pendingReward, mutate: refreshPendingReward } = useSWR(
-    account && smartPoolsContract ? ['smartFarmsPendingReward', farm.id.toString(), account] : null,
-    () => smartPoolsContract.pendingReward(farm.id, account) as Promise<BigNumber>,
+    account && smartFarmsContract ? ['smartFarmsPendingReward', farm.id.toString(), account] : null,
+    () => smartFarmsContract.pendingReward(farm.id, account) as Promise<BigNumber>,
     { refreshInterval: 10000 },
   )
 
@@ -686,10 +687,10 @@ const FarmRow: React.FC<{
   )
 
   const handleHarvest = useCallback(async () => {
-    if (!smartPoolsContract) return
+    if (!smartFarmsContract) return
     setPendingAction('harvest')
     try {
-      const tx = await callWithGasPrice(smartPoolsContract, 'harvest', [farm.id])
+      const tx = await callWithGasPrice(smartFarmsContract, 'harvest', [farm.id])
       const receipt = await tx.wait()
       toastSuccess(t('Harvested'), <ToastDescriptionWithTx txHash={receipt.transactionHash} />)
       refresh()
@@ -699,13 +700,13 @@ const FarmRow: React.FC<{
     } finally {
       setPendingAction('')
     }
-  }, [callWithGasPrice, farm.id, refresh, smartPoolsContract, t, toastError, toastSuccess])
+  }, [callWithGasPrice, farm.id, refresh, smartFarmsContract, t, toastError, toastSuccess])
 
   const handleCloseFarm = useCallback(async () => {
-    if (!smartPoolsContract) return
+    if (!smartFarmsContract) return
     setPendingAction('close')
     try {
-      const tx = await callWithGasPrice(smartPoolsContract, 'closePool', [farm.id])
+      const tx = await callWithGasPrice(smartFarmsContract, 'closePool', [farm.id])
       const receipt = await tx.wait()
       toastSuccess(t('Farm Closed'), <ToastDescriptionWithTx txHash={receipt.transactionHash} />)
       refresh()
@@ -715,7 +716,7 @@ const FarmRow: React.FC<{
     } finally {
       setPendingAction('')
     }
-  }, [callWithGasPrice, farm.id, refresh, smartPoolsContract, t, toastError, toastSuccess])
+  }, [callWithGasPrice, farm.id, refresh, smartFarmsContract, t, toastError, toastSuccess])
 
   if (asCard) {
     return (
@@ -927,9 +928,9 @@ const SmartFarmsList: React.FC = () => {
   const { t } = useTranslation()
   const { address: account } = useAccount()
   const { chainId } = useActiveChainId()
-  const smartFarmsAddress = useMemo(() => getSmartPoolsAddress(chainId), [chainId])
+  const smartFarmsAddress = useMemo(() => getSmartFarmsAddress(chainId), [chainId])
   const hasAddress = Boolean(smartFarmsAddress)
-  const smartPoolsContract = useSmartPoolsContract()
+  const smartFarmsContract = useSmartFarmsContract()
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [stakedOnly, setStakedOnly] = useState(false)
   const [status, setStatus] = useState<'live' | 'finished'>('live')
@@ -937,8 +938,8 @@ const SmartFarmsList: React.FC = () => {
   const [query, setQuery] = useState('')
 
   const { data: farms, mutate } = useSWR(
-    smartPoolsContract && hasAddress ? ['smartFarmsList', smartFarmsAddress] : null,
-    () => smartPoolsContract.getPools(0, POOLS_PAGE_SIZE) as Promise<FarmInfo[]>,
+    smartFarmsContract && hasAddress ? ['smartFarmsList', smartFarmsAddress] : null,
+    () => smartFarmsContract.getPools(0, POOLS_PAGE_SIZE) as Promise<FarmInfo[]>,
     { refreshInterval: 15000 },
   )
 

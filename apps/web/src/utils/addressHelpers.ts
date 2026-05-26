@@ -122,6 +122,10 @@ export const getSmartPoolsAddress = (chainId?: number) => {
   return getAddress(addresses.smartPools, chainId)
 }
 
+export const getSmartFarmsAddress = (chainId?: number) => {
+  return getAddress(addresses.smartFarms, chainId)
+}
+
 export const getDexSniperAddress = (chainId?: number) => {
   return getAddress(addresses.dexSniper, chainId)
 }
