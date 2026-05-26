@@ -34,6 +34,9 @@ import { useCallWithGasPrice } from 'hooks/useCallWithGasPrice'
 import { useSmartFarmsContract, useTokenContract } from 'hooks/useContract'
 import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
 import { useAvailableLpPairs } from 'hooks/useAvailableLpPairs'
+import { Contract } from '@ethersproject/contracts'
+import pairAbi from 'config/abi/pancakePair.json'
+import erc20Abi from 'config/abi/erc20.json'
 
 import useSWR from 'swr'
 import styled from 'styled-components'
@@ -212,13 +215,10 @@ const useLpPairName = (lpAddress?: string): string => {
   const { data } = useSWR(
     provider && lpAddress ? ['lpPairName', lpAddress] : null,
     async () => {
-      const { Contract } = await import('@ethersproject/contracts')
-      const pAbi = await import('config/abi/pancakePair.json')
-      const eAbi = await import('config/abi/erc20.json')
-      const pc = new Contract(lpAddress, pAbi as any, provider)
+      const pc = new Contract(lpAddress, pairAbi as any, provider)
       const [token0, token1] = await Promise.all([pc.token0(), pc.token1()])
-      const t0c = new Contract(token0, eAbi as any, provider)
-      const t1c = new Contract(token1, eAbi as any, provider)
+      const t0c = new Contract(token0, erc20Abi as any, provider)
+      const t1c = new Contract(token1, erc20Abi as any, provider)
       const [s0, s1] = await Promise.all([
         NATIVE_LIKE.includes(String(token0).toLowerCase()) ? 'POL' : String(await t0c.symbol()),
         NATIVE_LIKE.includes(String(token1).toLowerCase()) ? 'POL' : String(await t1c.symbol()),
