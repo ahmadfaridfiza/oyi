@@ -7,7 +7,6 @@ import erc20Abi from 'config/abi/erc20.json'
 import { FACTORY_ADDRESS } from '@pancakeswap/sdk'
 import useSWR from 'swr'
 
-const MAX_PAIRS = 80
 const BATCH_SIZE = 30
 
 export type LpPairOption = { label: string; value: string }
@@ -52,7 +51,7 @@ async function fetchSinglePair(addr: string, provider: any): Promise<LpPairOptio
 async function fetchAllPairs(factoryAddress: string, provider: any): Promise<LpPairOption[]> {
   const factory = new Contract(factoryAddress, factoryAbi as any, provider)
   const rawCount = await factory.allPairsLength()
-  const count = Math.min(Number(rawCount.toString()), MAX_PAIRS)
+  const count = Number(rawCount.toString())
   if (count === 0) return []
 
   const indexArray = Array.from({ length: count }, (_, i) => i)
