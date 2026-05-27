@@ -169,3 +169,7 @@ export const getStableSwapNativeHelperAddress = (chainId?: number) => {
 export const getMiningFactoryAddress = (chainId?: number) => {
   return getAddress(addresses.miningFactory, chainId)
 }
+
+export const getGameShopAddress = (chainId?: number) => {
+  return getAddress(addresses.gameShop, chainId)
+}

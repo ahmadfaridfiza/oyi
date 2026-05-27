@@ -17,6 +17,7 @@ import smartFarmsAbi from 'config/abi/smartFarms.json'
 import dexSniperAbi from 'config/abi/dexSniper.json'
 import newPairSniperAbi from 'config/abi/newPairSniper.json'
 import miningFactoryAbi from 'config/abi/miningFactory.json'
+import gameShopAbi from 'config/abi/gameShop.json'
 import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
 import { useMemo } from 'react'
 import {
@@ -30,6 +31,7 @@ import {
   getTokenLockerAddress,
   getZapAddress,
   getMiningFactoryAddress,
+  getGameShopAddress,
 } from 'utils/addressHelpers'
 import {
   getAnniversaryAchievementContract,
@@ -443,4 +445,9 @@ export const useStableSwapNativeHelperContract = () => {
 export function useMiningFactoryContract(withSignerIfPossible = true) {
   const { chainId } = useActiveChainId()
   return useContract(getMiningFactoryAddress(chainId), miningFactoryAbi, withSignerIfPossible)
+}
+
+export function useGameShopContract(withSignerIfPossible = true) {
+  const { chainId } = useActiveChainId()
+  return useContract(getGameShopAddress(chainId), gameShopAbi, withSignerIfPossible)
 }
