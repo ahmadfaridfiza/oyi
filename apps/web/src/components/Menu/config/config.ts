@@ -85,6 +85,7 @@ const config: (
       href: '/farms',
       icon: EarnIcon,
       fillIcon: EarnFillIcon,
+      hideSubNav: true,
       image: '/images/decorations/pe2.png',
       items: [
         {
@@ -94,7 +95,10 @@ const config: (
         {
           label: t('Pools'),
           href: '/pools',
-          supportChainIds: SUPPORT_ONLY_BSC,
+        },
+        {
+          label: t('Mining'),
+          href: '/mining',
         },
         {
           label: t('Smart Pools'),
@@ -240,7 +244,7 @@ const config: (
       href: '/lottery',
       icon: TrophyIcon,
       fillIcon: TrophyFillIcon,
-      supportChainIds: SUPPORT_ONLY_BSC,
+      // supportChainIds: SUPPORT_ONLY_BSC,
       showItemsOnMobile: false,
       items: [
         // {
@@ -291,13 +295,13 @@ const config: (
         {
           label: t('IFO'),
           href: '/ifo',
-          supportChainIds: SUPPORT_ONLY_BSC,
+          // supportChainIds: SUPPORT_ONLY_BSC,
           image: '/images/ifos/ifo-bunny.png',
         },
         {
           label: t('Voting'),
           href: '/voting',
-          supportChainIds: SUPPORT_ONLY_BSC,
+          // supportChainIds: SUPPORT_ONLY_BSC,
           image: '/images/voting/voting-bunny.png',
         },
         {
