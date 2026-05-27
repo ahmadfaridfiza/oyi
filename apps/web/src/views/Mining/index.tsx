@@ -61,12 +61,7 @@ type MiningInfo = {
   active: boolean
 }
 
-const PACKAGE_NAMES = ['Starter', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond']
-const PACKAGE_HASHRATES = ['1 TH/s', '5 TH/s', '12 TH/s', '65 TH/s', '140 TH/s', '750 TH/s']
-const PACKAGE_PRICES = ['10', '50', '100', '500', '1000', '5000']
-const PACKAGE_REWARDS = ['5', '27', '58', '310', '650', '3500']
-const PACKAGE_COLORS = ['#A0A0A0', '#CD7F32', '#C0C0C0', '#FFD700', '#E5E4E2', '#B9F2FF']
-const PACKAGE_ICONS = ['🪙', '🥉', '🥈', '🥇', '💎', '👑']
+const CARD_COLORS = ['#1FC7D4', '#7645D9', '#FFB237', '#31D0AA', '#ED4B9E', '#9A6AFF', '#6B8CFF', '#FF6B6B', '#51E0A0', '#E0A051']
 
 const CardGrid = styled(Box)`
   display: grid;
@@ -74,18 +69,18 @@ const CardGrid = styled(Box)`
   gap: 24px;
 `
 
-const PackageCardShell = styled(Card)<{ $color: string }>`
+const PackageCardShell = styled(Card)<{ $accent: string }>`
   overflow: hidden;
-  border-top: 4px solid ${({ $color }) => $color};
+  border-top: 4px solid ${({ $accent }) => $accent};
 `
 
-const PackageCardTop = styled(Box)<{ $color: string }>`
+const PackageCardTop = styled(Box)<{ $accent: string }>`
   padding: 24px;
   background: ${({ theme }) => theme.colors.backgroundAlt};
   text-align: center;
 `
 
-const PackageIcon = styled(Box)`
+const PackageEmoji = styled(Box)`
   font-size: 48px;
   line-height: 1;
   margin-bottom: 12px;
@@ -150,6 +145,11 @@ const formatDuration = (seconds?: BigNumber) => {
   if (days > 0) return `${days.toLocaleString()}d ${hours}h`
   return `${hours}h`
 }
+
+const PACKAGE_EMOJIS = ['⚡', '💎', '🔥', '🚀', '🌟', '💪', '🎯', '🏆', '⚙️', '🔮']
+
+const getPackageColor = (id: number) => CARD_COLORS[id % CARD_COLORS.length]
+const getPackageEmoji = (id: number) => PACKAGE_EMOJIS[id % PACKAGE_EMOJIS.length]
 
 const MiningTabs: React.FC<{ activeView: MiningView }> = ({ activeView }) => {
   const { t } = useTranslation()
@@ -300,31 +300,32 @@ const PackageCard: React.FC<{
   pkg: PackageInfo
   miningFactoryAddress: string
   onRefresh: () => void
-  index: number
-}> = ({ pkg, miningFactoryAddress, onRefresh, index }) => {
+}> = ({ pkg, miningFactoryAddress, onRefresh }) => {
   const { t } = useTranslation()
-  const color = PACKAGE_COLORS[index]
-  const icon = PACKAGE_ICONS[index]
+  const color = getPackageColor(pkg.id.toNumber())
 
   const [onPresentBuyModal] = useModal(
     <BuyHashModal pkg={pkg} miningFactoryAddress={miningFactoryAddress} onRefresh={onRefresh} />,
   )
 
+  const dailyRewardFormatted = formatCompactAmount(pkg.rewardPerDay, 18, 2)
+  const totalRewardFormatted = formatCompactAmount(pkg.rewardPerDay.mul(30), 18, 2)
+
   return (
-    <PackageCardShell $color={color}>
-      <PackageCardTop $color={color}>
-        <PackageIcon>{icon}</PackageIcon>
+    <PackageCardShell $accent={color}>
+      <PackageCardTop $accent={color}>
+        <PackageEmoji>{getPackageEmoji(pkg.id.toNumber())}</PackageEmoji>
         <Heading scale="md" mb="4px">{pkg.name}</Heading>
-        <Text fontSize="14px" color="textSubtle">{PACKAGE_HASHRATES[index]}</Text>
+        <Text fontSize="14px" color="textSubtle">{formatCompactAmount(pkg.hashRate, 15, 0)} TH/s</Text>
       </PackageCardTop>
       <CardBody>
         <Flex justifyContent="space-between" mb="8px">
           <Text color="textSubtle">{t('Price')}</Text>
-          <Text bold>{PACKAGE_PRICES[index]} USDT</Text>
+          <Text bold>{formatCompactAmount(pkg.priceUSDT, 6, 2)} USDT</Text>
         </Flex>
         <Flex justifyContent="space-between" mb="8px">
           <Text color="textSubtle">{t('Daily Reward')}</Text>
-          <Text bold>{PACKAGE_REWARDS[index]} PLAX</Text>
+          <Text bold>{dailyRewardFormatted} PLAX</Text>
         </Flex>
         <Flex justifyContent="space-between" mb="8px">
           <Text color="textSubtle">{t('Duration')}</Text>
@@ -332,7 +333,7 @@ const PackageCard: React.FC<{
         </Flex>
         <Flex justifyContent="space-between" mb="24px">
           <Text color="textSubtle">{t('Total Reward')}</Text>
-          <Text bold>{(Number(PACKAGE_REWARDS[index]) * 30).toLocaleString()} PLAX</Text>
+          <Text bold>{totalRewardFormatted} PLAX</Text>
         </Flex>
         <Button width="100%" onClick={onPresentBuyModal} disabled={!pkg.active}>
           {pkg.active ? t('Buy Hash') : t('Sold Out')}
@@ -345,8 +346,9 @@ const PackageCard: React.FC<{
 const MiningRow: React.FC<{
   mining: MiningInfo
   miningFactoryContract: any
+  packages?: PackageInfo[]
   onRefresh: () => void
-}> = ({ mining, miningFactoryContract, onRefresh }) => {
+}> = ({ mining, miningFactoryContract, packages, onRefresh }) => {
   const { t } = useTranslation()
   const { address: account } = useAccount()
   const { callWithGasPrice } = useCallWithGasPrice()
@@ -354,8 +356,9 @@ const MiningRow: React.FC<{
   const [pendingAction, setPendingAction] = useState('')
   const [expanded, setExpanded] = useState(false)
 
-  const packageIndex = mining.packageId.toNumber()
-  const packageName = PACKAGE_NAMES[packageIndex] || `Package ${packageIndex}`
+  const packageId = mining.packageId.toNumber()
+  const pkg = packages?.find((p) => p.id.toNumber() === packageId)
+  const packageName = pkg?.name ?? `${t('Package')} #${packageId}`
 
   const { data: pendingReward, mutate: refreshPending } = useSWR(
     account && miningFactoryContract
@@ -490,15 +493,8 @@ const PackagesList: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
   const miningFactoryContract = useMiningFactoryContract(false)
 
   const { data: packages, mutate } = useSWR(
-    miningFactoryContract && hasAddress ? ['miningPackages'] : null,
-    () => {
-      return Promise.all(
-        [0, 1, 2, 3, 4, 5].map(async (i) => {
-          const pkg = await miningFactoryContract.packages(i)
-          return pkg as PackageInfo
-        }),
-      )
-    },
+    miningFactoryContract && hasAddress ? ['miningPackagesAll'] : null,
+    () => miningFactoryContract.getAllPackages() as Promise<PackageInfo[]>,
     { refreshInterval: 30000 },
   )
 
@@ -545,11 +541,10 @@ const PackagesList: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
       </Flex>
 
       <CardGrid>
-        {packages?.map((pkg: PackageInfo, i: number) => (
+        {packages?.map((pkg: PackageInfo) => (
           <PackageCard
             key={pkg.id.toString()}
             pkg={pkg}
-            index={i}
             miningFactoryAddress={miningFactoryAddress}
             onRefresh={refresh}
           />
@@ -574,6 +569,12 @@ const MyMiningList: React.FC = () => {
   const miningFactoryAddress = useMemo(() => getMiningFactoryAddress(chainId), [chainId])
   const hasAddress = Boolean(miningFactoryAddress)
   const miningFactoryContract = useMiningFactoryContract()
+
+  const { data: packages } = useSWR(
+    miningFactoryContract && hasAddress ? ['miningPackagesAll'] : null,
+    () => miningFactoryContract.getAllPackages() as Promise<PackageInfo[]>,
+    { refreshInterval: 60000 },
+  )
 
   const { data: minings, mutate } = useSWR(
     miningFactoryContract && hasAddress && account
@@ -623,6 +624,7 @@ const MyMiningList: React.FC = () => {
           <MiningRow
             key={mining.id.toString()}
             mining={mining}
+            packages={packages}
             miningFactoryContract={miningFactoryContract}
             onRefresh={mutate}
           />

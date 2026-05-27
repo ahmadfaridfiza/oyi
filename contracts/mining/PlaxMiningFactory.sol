@@ -22,6 +22,13 @@ contract PlaxMiningFactory {
         bool active;
     }
 
+    struct PackageInit {
+        string name;
+        uint256 hashRate;
+        uint256 priceUSDT;
+        uint256 rewardPerDay;
+    }
+
     struct Mining {
         uint256 id;
         address user;
@@ -46,13 +53,14 @@ contract PlaxMiningFactory {
     uint256 public miningCount;
     uint256 public totalStaked;
 
-    Package[6] public packages;
+    Package[] public packages;
     mapping(uint256 => Mining) public minings;
     mapping(address => uint256[]) public userMiningIds;
     mapping(address => uint256) public totalReferralEarnings;
     mapping(uint256 => uint256) public packageTotalStaked;
     mapping(address => uint256) public totalUserStaked;
 
+    event PackageAdded(uint256 indexed id, string name, uint256 hashRate, uint256 priceUSDT, uint256 rewardPerDay);
     event PackageUpdated(uint256 indexed id, string name, uint256 hashRate, uint256 priceUSDT, uint256 rewardPerDay);
     event HashPurchased(uint256 indexed miningId, address indexed user, address indexed referrer, uint256 packageId, uint256 amountUSDT, uint256 hashRate);
     event RewardClaimed(uint256 indexed miningId, address indexed user, uint256 amount);
@@ -65,29 +73,47 @@ contract PlaxMiningFactory {
         _;
     }
 
-    constructor(address _usdt, address _plaxToken, address _feeReceiver) {
+    constructor(
+        address _usdt,
+        address _plaxToken,
+        address _feeReceiver,
+        PackageInit[] memory _packages
+    ) {
         require(_usdt != address(0), "Invalid USDT");
         require(_plaxToken != address(0), "Invalid PLAX");
         require(_feeReceiver != address(0), "Invalid fee receiver");
+        require(_packages.length > 0, "At least one package");
+
         owner = msg.sender;
         usdt = IMiningERC20(_usdt);
         plaxToken = IMiningERC20(_plaxToken);
         feeReceiver = _feeReceiver;
 
-        _initPackages();
+        for (uint256 i = 0; i < _packages.length; i++) {
+            _addPackage(_packages[i].name, _packages[i].hashRate, _packages[i].priceUSDT, _packages[i].rewardPerDay);
+        }
     }
 
-    function _initPackages() internal {
-        packages[0] = Package(0, "Starter", 1e15, 10 * 1e6, 5 * 1e18, true);
-        packages[1] = Package(1, "Bronze", 5e15, 50 * 1e6, 27 * 1e18, true);
-        packages[2] = Package(2, "Silver", 12e15, 100 * 1e6, 58 * 1e18, true);
-        packages[3] = Package(3, "Gold", 65e15, 500 * 1e6, 310 * 1e18, true);
-        packages[4] = Package(4, "Platinum", 140e15, 1000 * 1e6, 650 * 1e18, true);
-        packages[5] = Package(5, "Diamond", 750e15, 5000 * 1e6, 3500 * 1e18, true);
+    function _addPackage(string memory name, uint256 hashRate, uint256 priceUSDT, uint256 rewardPerDay) internal {
+        uint256 id = packages.length;
+        packages.push(Package(id, name, hashRate, priceUSDT, rewardPerDay, true));
+        emit PackageAdded(id, name, hashRate, priceUSDT, rewardPerDay);
+    }
+
+    function addPackage(string calldata name, uint256 hashRate, uint256 priceUSDT, uint256 rewardPerDay) external onlyOwner {
+        _addPackage(name, hashRate, priceUSDT, rewardPerDay);
+    }
+
+    function getPackageCount() external view returns (uint256) {
+        return packages.length;
+    }
+
+    function getAllPackages() external view returns (Package[] memory) {
+        return packages;
     }
 
     function buyHash(uint256 packageId, address referrer) external {
-        require(packageId < 6, "Invalid package");
+        require(packageId < packages.length, "Invalid package");
         Package storage pkg = packages[packageId];
         require(pkg.active, "Package not active");
         require(referrer != msg.sender, "Cannot refer self");
@@ -233,7 +259,7 @@ contract PlaxMiningFactory {
         uint256 rewardPerDay,
         bool active
     ) external onlyOwner {
-        require(packageId < 6, "Invalid package");
+        require(packageId < packages.length, "Invalid package");
         packages[packageId].name = name;
         packages[packageId].hashRate = hashRate;
         packages[packageId].priceUSDT = priceUSDT;

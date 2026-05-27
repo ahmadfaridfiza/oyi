@@ -3,7 +3,18 @@
     "inputs": [
       { "internalType": "address", "name": "_usdt", "type": "address" },
       { "internalType": "address", "name": "_plaxToken", "type": "address" },
-      { "internalType": "address", "name": "_feeReceiver", "type": "address" }
+      { "internalType": "address", "name": "_feeReceiver", "type": "address" },
+      {
+        "components": [
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "uint256", "name": "hashRate", "type": "uint256" },
+          { "internalType": "uint256", "name": "priceUSDT", "type": "uint256" },
+          { "internalType": "uint256", "name": "rewardPerDay", "type": "uint256" }
+        ],
+        "internalType": "struct PlaxMiningFactory.PackageInit[]",
+        "name": "_packages",
+        "type": "tuple[]"
+      }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
@@ -23,6 +34,18 @@
       { "indexed": true, "internalType": "address", "name": "feeReceiver", "type": "address" }
     ],
     "name": "FeeReceiverUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "id", "type": "uint256" },
+      { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
+      { "indexed": false, "internalType": "uint256", "name": "hashRate", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "priceUSDT", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "rewardPerDay", "type": "uint256" }
+    ],
+    "name": "PackageAdded",
     "type": "event"
   },
   {
@@ -180,6 +203,46 @@
     "inputs": [{ "internalType": "address", "name": "", "type": "address" }],
     "name": "totalUserStaked",
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "name", "type": "string" },
+      { "internalType": "uint256", "name": "hashRate", "type": "uint256" },
+      { "internalType": "uint256", "name": "priceUSDT", "type": "uint256" },
+      { "internalType": "uint256", "name": "rewardPerDay", "type": "uint256" }
+    ],
+    "name": "addPackage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getPackageCount",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllPackages",
+    "outputs": [
+      {
+        "components": [
+          { "internalType": "uint256", "name": "id", "type": "uint256" },
+          { "internalType": "string", "name": "name", "type": "string" },
+          { "internalType": "uint256", "name": "hashRate", "type": "uint256" },
+          { "internalType": "uint256", "name": "priceUSDT", "type": "uint256" },
+          { "internalType": "uint256", "name": "rewardPerDay", "type": "uint256" },
+          { "internalType": "bool", "name": "active", "type": "bool" }
+        ],
+        "internalType": "struct PlaxMiningFactory.Package[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
     "stateMutability": "view",
     "type": "function"
   },
