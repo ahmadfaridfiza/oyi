@@ -165,3 +165,7 @@ export const getMMLinkedPoolAddress = (chainId?: number) => {
 export const getStableSwapNativeHelperAddress = (chainId?: number) => {
   return getAddress(addresses.stableSwapNativeHelper, chainId)
 }
+
+export const getMiningFactoryAddress = (chainId?: number) => {
+  return getAddress(addresses.miningFactory, chainId)
+}

@@ -16,6 +16,7 @@ import smartPoolsAbi from 'config/abi/smartPools.json'
 import smartFarmsAbi from 'config/abi/smartFarms.json'
 import dexSniperAbi from 'config/abi/dexSniper.json'
 import newPairSniperAbi from 'config/abi/newPairSniper.json'
+import miningFactoryAbi from 'config/abi/miningFactory.json'
 import { useProviderOrSigner } from 'hooks/useProviderOrSigner'
 import { useMemo } from 'react'
 import {
@@ -28,6 +29,7 @@ import {
   getDexSniperAddress,
   getTokenLockerAddress,
   getZapAddress,
+  getMiningFactoryAddress,
 } from 'utils/addressHelpers'
 import {
   getAnniversaryAchievementContract,
@@ -436,4 +438,9 @@ export const useStableSwapNativeHelperContract = () => {
   const { chainId } = useActiveChainId()
   const { data: signer } = useSigner()
   return useMemo(() => getStableSwapNativeHelperContract(signer, chainId), [signer, chainId])
+}
+
+export function useMiningFactoryContract(withSignerIfPossible = true) {
+  const { chainId } = useActiveChainId()
+  return useContract(getMiningFactoryAddress(chainId), miningFactoryAbi, withSignerIfPossible)
 }
