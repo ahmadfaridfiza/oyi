@@ -166,17 +166,11 @@ const WaterIcon = () => (
 
 const getPlotEmoji = (state: PlotState, crop?: CropType): string => {
   if (state === 'empty') return '🟫'
-  if (state === 'ready') return CROP_CONFIG[crop!].emoji
+  if (state === 'ready' && crop) return CROP_CONFIG[crop].emoji
   if (state === 'withered') return '💀'
   if (state === 'seed') return '🌱'
   if (state === 'sprout') return '🌿'
   return '🌱'
-}
-
-const getStageDuration = (crop: CropType, stageIndex: number): number => {
-  const total = CROP_CONFIG[crop].growTime
-  const stages = CROP_CONFIG[crop].stages.length - 1
-  return total / stages
 }
 
 const calculateStage = (crop: CropType, plantedAt: number, lastWateredAt: number | undefined): { stage: PlotState; progress: number } => {
@@ -184,8 +178,7 @@ const calculateStage = (crop: CropType, plantedAt: number, lastWateredAt: number
   const elapsed = (now - plantedAt) / 1000
   const boost = lastWateredAt ? WATER_BOOST : 1
   const adjustedElapsed = elapsed / boost
-  const totalGrow = CROP_CONFIG[crop].growTime
-  const stages = CROP_CONFIG[crop].stages
+  const { growTime: totalGrow, stages } = CROP_CONFIG[crop]
   const progress = Math.min(adjustedElapsed / totalGrow, 1)
 
   if (progress >= 1) return { stage: 'ready', progress: 1 }
@@ -334,7 +327,7 @@ const Game: React.FC = () => {
     return inventory.find((i) => i.crop === crop)?.count ?? 0
   }, [inventory])
 
-  const useSeed = useCallback((crop: CropType) => {
+  const consumeSeed = useCallback((crop: CropType) => {
     setInventory((prev) => prev.map((i) => i.crop === crop ? { ...i, count: i.count - 1 } : i).filter((i) => i.count > 0))
   }, [])
 
@@ -359,7 +352,7 @@ const Game: React.FC = () => {
         toastError(t('No Seeds'), t('You have no %crop% seeds!', { crop: CROP_CONFIG[selectedCrop].name }))
         return
       }
-      useSeed(selectedCrop)
+      consumeSeed(selectedCrop)
       const now = Date.now()
       setGrid((prev) => {
         const next = prev.map((r) => r.map((p) => ({ ...p })))
@@ -380,9 +373,8 @@ const Game: React.FC = () => {
         return next
       })
       toastSuccess(t('Watered!'), t('Crops grow faster when watered!'))
-      return
     }
-  }, [grid, selectedCrop, getCropCount, useSeed, addXp, t, toastSuccess, toastError])
+  }, [grid, selectedCrop, getCropCount, consumeSeed, addXp, t, toastSuccess, toastError])
 
   const handleBuyAsset = useCallback(async (asset: ShopAsset) => {
     if (!gameShopContract || !plaxContract || !gameShopAddress || !account) return
@@ -487,39 +479,40 @@ const Game: React.FC = () => {
               </Text>
             )}
             <FarmGrid>
-              {grid.map((row, ri) =>
-                row.map((plot, ci) => {
-                  const state = plot.state as PlotState
-                  const isClickable = state !== 'withered'
-                  const emoji = state !== 'empty' && plot.crop && state !== 'ready'
-                    ? CROP_CONFIG[plot.crop].emoji
-                    : getPlotEmoji(state, plot.crop)
-                  const showProgress = state !== 'empty' && state !== 'ready' && state !== 'withered' && plot.crop && plot.plantedAt
-                  let progressPct = 0
-                  if (showProgress) {
-                    const result = calculateStage(plot.crop!, plot.plantedAt!, plot.lastWateredAt)
-                    progressPct = result.progress * 100
-                  }
-                  const needsWater = plot.state !== 'empty' && plot.state !== 'ready' && plot.state !== 'withered' && plot.lastWateredAt && (Date.now() - plot.lastWateredAt) > 8000
+              {Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, cellIndex) => {
+                const ri = Math.floor(cellIndex / GRID_SIZE)
+                const ci = cellIndex % GRID_SIZE
+                const plot = grid[ri][ci]
+                const state = plot.state as PlotState
+                const isClickable = state !== 'withered'
+                const emoji = state !== 'empty' && plot.crop && state !== 'ready'
+                  ? CROP_CONFIG[plot.crop].emoji
+                  : getPlotEmoji(state, plot.crop)
+                const showProgress = state !== 'empty' && state !== 'ready' && state !== 'withered' && plot.crop && plot.plantedAt
+                let progressPct = 0
+                if (showProgress && plot.crop && plot.plantedAt) {
+                  const result = calculateStage(plot.crop, plot.plantedAt, plot.lastWateredAt)
+                  progressPct = result.progress * 100
+                }
+                const needsWater = plot.state !== 'empty' && plot.state !== 'ready' && plot.state !== 'withered' && plot.lastWateredAt && (Date.now() - plot.lastWateredAt) > 8000
 
-                  return (
-                    <PlotBox
-                      key={`${ri}-${ci}`}
-                      $state={plot.state}
-                      $isClickable={isClickable}
-                      onClick={() => handlePlotClick(ri, ci)}
-                    >
-                      <PlotEmoji>{emoji}</PlotEmoji>
-                      {needsWater && <WaterBadge><WaterIcon /></WaterBadge>}
-                      {showProgress && (
-                        <ProgressBar>
-                          <ProgressFill $pct={progressPct} />
-                        </ProgressBar>
-                      )}
-                    </PlotBox>
-                  )
-                })
-              )}
+                return (
+                  <PlotBox
+                    key={`cell-${cellIndex}`}
+                    $state={plot.state}
+                    $isClickable={isClickable}
+                    onClick={() => handlePlotClick(ri, ci)}
+                  >
+                    <PlotEmoji>{emoji}</PlotEmoji>
+                    {needsWater && <WaterBadge><WaterIcon /></WaterBadge>}
+                    {showProgress && (
+                      <ProgressBar>
+                        <ProgressFill $pct={progressPct} />
+                      </ProgressBar>
+                    )}
+                  </PlotBox>
+                )
+              })}
             </FarmGrid>
             {ownedCharacters.length > 0 && (
               <Box mt="24px">
