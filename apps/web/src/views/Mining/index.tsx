@@ -547,7 +547,7 @@ const PackagesList: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
       <CardGrid>
         {packages?.map((pkg: PackageInfo, i: number) => (
           <PackageCard
-            key={i}
+            key={pkg.id.toString()}
             pkg={pkg}
             index={i}
             miningFactoryAddress={miningFactoryAddress}
