@@ -127,7 +127,9 @@ const StyledPrice = styled(Text)`
 const formatCompactAmount = (amount: BigNumber, decimals: number, precision = 4) => {
   const value = Number(formatUnits(amount, decimals))
   if (!Number.isFinite(value)) return '0'
-  return value.toLocaleString(undefined, { maximumFractionDigits: precision })
+  if (value === 0) return '0'
+  const fixedPrecision = Math.max(precision, Math.abs(Math.floor(Math.log10(Math.abs(value)))) + 2)
+  return value.toLocaleString(undefined, { maximumFractionDigits: fixedPrecision })
 }
 
 const formatDuration = (seconds?: BigNumber) => {
@@ -250,7 +252,7 @@ const BuyHashModal: React.FC<
           <Text fontSize="14px" color="textSubtle">{t('Price')}</Text>
           <StyledPrice>{formatCompactAmount(pkg.priceUSDT, 6, 2)} USDT</StyledPrice>
           <Text fontSize="14px" color="textSubtle" mt="8px">{t('Hash Rate')}</Text>
-          <Text bold fontSize="20px">{formatCompactAmount(pkg.hashRate, 15, 0)} TH/s</Text>
+          <Text bold fontSize="20px">{formatCompactAmount(pkg.hashRate, 0, 0)} TH/s</Text>
           <Text fontSize="14px" color="textSubtle" mt="8px">{t('Daily Reward')}</Text>
           <Text bold fontSize="20px">{formatCompactAmount(pkg.rewardPerDay, 18, 2)} PLAX</Text>
         </Flex>
@@ -316,7 +318,7 @@ const PackageCard: React.FC<{
       <PackageCardTop $accent={color}>
         <PackageEmoji>{getPackageEmoji(pkg.id.toNumber())}</PackageEmoji>
         <Heading scale="md" mb="4px">{pkg.name}</Heading>
-        <Text fontSize="14px" color="textSubtle">{formatCompactAmount(pkg.hashRate, 15, 0)} TH/s</Text>
+        <Text fontSize="14px" color="textSubtle">{formatCompactAmount(pkg.hashRate, 0, 0)} TH/s</Text>
       </PackageCardTop>
       <CardBody>
         <Flex justifyContent="space-between" mb="8px">
@@ -417,7 +419,7 @@ const MiningRow: React.FC<{
         </Flex>
         <StatBox>
           <Text color="textSubtle" fontSize="12px">{t('Hash')}</Text>
-          <Text bold fontSize="14px">{formatCompactAmount(mining.hashRate, 15, 0)} TH/s</Text>
+          <Text bold fontSize="14px">{formatCompactAmount(mining.hashRate, 0, 0)} TH/s</Text>
         </StatBox>
         <StatBox>
           <Text color="textSubtle" fontSize="12px">{t('Reward')}</Text>
@@ -528,7 +530,7 @@ const PackagesList: React.FC<{ onRefresh: () => void }> = ({ onRefresh }) => {
           <CardBody>
             <Text color="textSubtle" fontSize="12px">{t('Total Hash Staked')}</Text>
             <Text bold fontSize="24px">
-              {totalStaked ? `${formatCompactAmount(BigNumber.from(totalStaked), 15, 0)} TH/s` : '-'}
+              {totalStaked ? `${formatCompactAmount(BigNumber.from(totalStaked), 0, 0)} TH/s` : '-'}
             </Text>
           </CardBody>
         </Card>
