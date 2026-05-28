@@ -20,9 +20,9 @@ export const GRAPH_API_PREDICTION_V1 = ''
 export const INFO_CLIENT = 'https://api.studio.thegraph.com/query/1754232/platops/version/latest'
 export const INFO_CLIENT_FALLBACKS = [
   INFO_CLIENT,
-  'https://api.studio.thegraph.com/query/1749771/tesdata/version/latest',
-  'https://api.studio.thegraph.com/query/1749771/testokendata/version/latest',
-  'https://api.studio.thegraph.com/query/1749771/tesvolumedata/version/latest',
+  '',
+  '',
+  '',
 ]
 
 export const INFO_CLIENT_ETH = ''
