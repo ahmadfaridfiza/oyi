@@ -553,7 +553,9 @@ const fetchTokenMarketDataByAddresses = async (
     `
 
     const data = await getMultiChainQueryEndPointWithStableSwap(chainName).request<PairMarketQueryResponse>(query)
-
+console.log(
+  getMultiChainQueryEndPointWithStableSwap(chainName)
+)
     const currentPairs = [...(data.nowToken0QuotePairs ?? []), ...(data.nowToken1QuotePairs ?? [])]
     const oneDayPairs = [...(data.oneDayAgoToken0QuotePairs ?? []), ...(data.oneDayAgoToken1QuotePairs ?? [])]
     const twoDayPairs = [...(data.twoDaysAgoToken0QuotePairs ?? []), ...(data.twoDaysAgoToken1QuotePairs ?? [])]
