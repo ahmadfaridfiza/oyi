@@ -194,7 +194,7 @@ export default {
     137: '0x9Fa2615c88990f49A1a87De6C6fca928cb9B58D8',
   },
   miningFactory: {
-    137: '0x0000000000000000000000000000000000000000',
+    137: '0xa75633fC7E66bEEee623aE9AD52e5307e76cD70C',
     80001: '',
   },
   gameShop: {
